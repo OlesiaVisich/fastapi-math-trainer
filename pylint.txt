@@ -1,0 +1,141 @@
+************* Module app.auth
+app\auth.py:37:0: C0301: Line too long (141/100) (line-too-long)
+app\auth.py:42:0: C0304: Final newline missing (missing-final-newline)
+app\auth.py:1:0: C0114: Missing module docstring (missing-module-docstring)
+app\auth.py:14:0: C0116: Missing function or method docstring (missing-function-docstring)
+app\auth.py:18:0: C0116: Missing function or method docstring (missing-function-docstring)
+app\auth.py:21:0: C0116: Missing function or method docstring (missing-function-docstring)
+app\auth.py:24:0: C0116: Missing function or method docstring (missing-function-docstring)
+app\auth.py:30:0: C0116: Missing function or method docstring (missing-function-docstring)
+app\auth.py:37:0: C0116: Missing function or method docstring (missing-function-docstring)
+app\auth.py:37:116: W0108: Lambda may not be necessary (unnecessary-lambda)
+app\auth.py:37:27: W0613: Unused argument 'token' (unused-argument)
+app\auth.py:4:0: W0611: Unused JWTError imported from jose (unused-import)
+app\auth.py:5:0: W0611: Unused status imported from fastapi (unused-import)
+app\auth.py:11:0: W0611: Unused TokenData imported from app.schemas (unused-import)
+************* Module app.config
+app\config.py:8:0: C0304: Final newline missing (missing-final-newline)
+app\config.py:1:0: C0114: Missing module docstring (missing-module-docstring)
+app\config.py:3:0: C0115: Missing class docstring (missing-class-docstring)
+************* Module app.database
+app\database.py:13:0: C0304: Final newline missing (missing-final-newline)
+app\database.py:1:0: C0114: Missing module docstring (missing-module-docstring)
+app\database.py:8:0: C0103: Constant name "SessionLocal" doesn't conform to UPPER_CASE naming style (invalid-name)
+************* Module app.logic
+app\logic.py:79:0: C0301: Line too long (109/100) (line-too-long)
+app\logic.py:80:0: C0301: Line too long (110/100) (line-too-long)
+app\logic.py:101:0: C0304: Final newline missing (missing-final-newline)
+app\logic.py:1:0: C0114: Missing module docstring (missing-module-docstring)
+app\logic.py:46:0: R0913: Too many arguments (7/5) (too-many-arguments)
+app\logic.py:46:0: R0917: Too many positional arguments (7/5) (too-many-positional-arguments)
+app\logic.py:57:4: R1702: Too many nested blocks (6/5) (too-many-nested-blocks)
+app\logic.py:46:0: R0912: Too many branches (14/12) (too-many-branches)
+************* Module app.main
+app\main.py:14:0: C0304: Final newline missing (missing-final-newline)
+app\main.py:1:0: C0114: Missing module docstring (missing-module-docstring)
+app\main.py:13:0: C0116: Missing function or method docstring (missing-function-docstring)
+************* Module app.models
+app\models.py:31:0: C0304: Final newline missing (missing-final-newline)
+app\models.py:1:0: C0114: Missing module docstring (missing-module-docstring)
+app\models.py:5:0: C0115: Missing class docstring (missing-class-docstring)
+app\models.py:13:64: E1102: func.now is not callable (not-callable)
+app\models.py:5:0: R0903: Too few public methods (0/2) (too-few-public-methods)
+app\models.py:15:0: C0115: Missing class docstring (missing-class-docstring)
+app\models.py:22:64: E1102: func.now is not callable (not-callable)
+app\models.py:15:0: R0903: Too few public methods (0/2) (too-few-public-methods)
+app\models.py:24:0: C0115: Missing class docstring (missing-class-docstring)
+app\models.py:24:0: R0903: Too few public methods (0/2) (too-few-public-methods)
+************* Module app.schemas
+app\schemas.py:61:0: C0304: Final newline missing (missing-final-newline)
+app\schemas.py:1:0: C0114: Missing module docstring (missing-module-docstring)
+app\schemas.py:5:0: C0115: Missing class docstring (missing-class-docstring)
+app\schemas.py:9:0: C0115: Missing class docstring (missing-class-docstring)
+app\schemas.py:12:0: C0115: Missing class docstring (missing-class-docstring)
+app\schemas.py:16:0: C0115: Missing class docstring (missing-class-docstring)
+app\schemas.py:19:0: C0115: Missing class docstring (missing-class-docstring)
+app\schemas.py:24:4: C0115: Missing class docstring (missing-class-docstring)
+app\schemas.py:24:4: R0903: Too few public methods (0/2) (too-few-public-methods)
+app\schemas.py:27:0: C0115: Missing class docstring (missing-class-docstring)
+app\schemas.py:32:0: C0115: Missing class docstring (missing-class-docstring)
+app\schemas.py:36:0: C0115: Missing class docstring (missing-class-docstring)
+app\schemas.py:39:0: C0115: Missing class docstring (missing-class-docstring)
+app\schemas.py:45:4: C0115: Missing class docstring (missing-class-docstring)
+app\schemas.py:45:4: R0903: Too few public methods (0/2) (too-few-public-methods)
+app\schemas.py:48:0: C0115: Missing class docstring (missing-class-docstring)
+app\schemas.py:59:0: C0115: Missing class docstring (missing-class-docstring)
+app\schemas.py:2:0: C0411: standard import "typing.List" should be placed before third party import "pydantic.BaseModel" (wrong-import-order)
+app\schemas.py:3:0: C0411: standard import "datetime.datetime" should be placed before third party import "pydantic.BaseModel" (wrong-import-order)
+************* Module app.api.auth
+app\api\auth.py:48:0: C0304: Final newline missing (missing-final-newline)
+app\api\auth.py:1:0: C0114: Missing module docstring (missing-module-docstring)
+app\api\auth.py:12:0: C0116: Missing function or method docstring (missing-function-docstring)
+app\api\auth.py:20:0: C0116: Missing function or method docstring (missing-function-docstring)
+app\api\auth.py:36:0: C0116: Missing function or method docstring (missing-function-docstring)
+************* Module app.api.generate
+app\api\generate.py:46:0: C0301: Line too long (101/100) (line-too-long)
+app\api\generate.py:64:0: C0304: Final newline missing (missing-final-newline)
+app\api\generate.py:1:0: C0114: Missing module docstring (missing-module-docstring)
+app\api\generate.py:11:0: C0116: Missing function or method docstring (missing-function-docstring)
+app\api\generate.py:42:4: C0415: Import outside toplevel (json) (import-outside-toplevel)
+app\api\generate.py:1:0: W0611: Unused HTTPException imported from fastapi (unused-import)
+************* Module app.api.users
+app\api\users.py:26:0: C0304: Final newline missing (missing-final-newline)
+app\api\users.py:1:0: C0114: Missing module docstring (missing-module-docstring)
+app\api\users.py:10:0: C0116: Missing function or method docstring (missing-function-docstring)
+app\api\users.py:18:0: C0116: Missing function or method docstring (missing-function-docstring)
+app\api\users.py:22:0: C0116: Missing function or method docstring (missing-function-docstring)
+************* Module app.api.worksheets
+app\api\worksheets.py:25:0: C0301: Line too long (116/100) (line-too-long)
+app\api\worksheets.py:32:0: C0301: Line too long (133/100) (line-too-long)
+app\api\worksheets.py:45:0: C0301: Line too long (116/100) (line-too-long)
+app\api\worksheets.py:50:0: C0301: Line too long (124/100) (line-too-long)
+app\api\worksheets.py:56:0: C0304: Final newline missing (missing-final-newline)
+app\api\worksheets.py:1:0: C0114: Missing module docstring (missing-module-docstring)
+app\api\worksheets.py:10:0: C0116: Missing function or method docstring (missing-function-docstring)
+app\api\worksheets.py:17:0: C0413: Import "import json" should be placed at the top of the module (wrong-import-position)
+app\api\worksheets.py:20:0: C0116: Missing function or method docstring (missing-function-docstring)
+app\api\worksheets.py:32:0: C0116: Missing function or method docstring (missing-function-docstring)
+app\api\worksheets.py:40:0: C0116: Missing function or method docstring (missing-function-docstring)
+app\api\worksheets.py:40:0: E0102: function already defined line 20 (function-redefined)
+app\api\worksheets.py:50:0: C0116: Missing function or method docstring (missing-function-docstring)
+app\api\worksheets.py:17:0: C0411: standard import "json" should be placed before third party imports "fastapi.APIRouter", "sqlalchemy.orm.Session" and first party imports "app.models.Worksheet", "app.schemas.Worksheet", "app.auth.get_current_user", "app.database.SessionLocal"  (wrong-import-order)
+************* Module app.api.__init__
+app\api\__init__.py:1:0: R0801: Similar lines in 2 files
+==app.api.auth:[9:20]
+==app.api.generate:[8:26]
+router = APIRouter()
+
+def get_db():
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
+
+@router.post("/generate", response_model=GenerateResponse)
+def generate_worksheet(
+    request: GenerateRequest,
+    db: Session = Depends(get_db),
+    current_user = Depends(get_current_user)
+):
+    """
+    Генерирует карточку с заданиями.
+    """ (duplicate-code)
+app\api\__init__.py:1:0: R0801: Similar lines in 2 files
+==app.api.users:[7:18]
+==app.api.worksheets:[7:20]
+router = APIRouter()
+
+def get_db():
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
+
+@router.get("/me", response_model=User)
+def read_users_me(current_user: UserModel = Depends(get_current_user)): (duplicate-code)
+
+-----------------------------------
+Your code has been rated at 6.80/10
+

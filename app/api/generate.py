@@ -39,7 +39,13 @@ def generate_worksheet(
         title=request.header_text or "Generated Worksheet",
         settings=request.dict()
     )
-    db_worksheet = WorksheetModel(**worksheet_data.dict(), user_id=current_user.id)
+    import json
+
+    # Преобразуем словарь в строку
+    worksheet_data_dict = worksheet_data.dict()
+    worksheet_data_dict["settings"] = json.dumps(worksheet_data_dict["settings"], ensure_ascii=False)
+
+    db_worksheet = WorksheetModel(**worksheet_data_dict, user_id=current_user.id)
     db.add(db_worksheet)
     db.flush()  # Чтобы получить ID
 

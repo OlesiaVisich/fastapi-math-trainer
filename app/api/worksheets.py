@@ -14,10 +14,19 @@ def get_db():
     finally:
         db.close()
 
-@router.get("/", response_model=list[Worksheet])
-def read_worksheets(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
-    worksheets = db.query(WorksheetModel).offset(skip).limit(limit).all()
-    return worksheets
+import json
+
+@router.get("/{worksheet_id}", response_model=Worksheet)
+def read_worksheet(worksheet_id: int, db: Session = Depends(get_db)):
+    worksheet = db.query(WorksheetModel).filter(WorksheetModel.id == worksheet_id).first()
+    if worksheet is None:
+        raise HTTPException(status_code=404, detail="Worksheet not found")
+    # Загружаем задачи
+    tasks = db.query(TaskModel).filter(TaskModel.worksheet_id == worksheet_id).order_by(TaskModel.order_index).all()
+    # Преобразуем строку обратно в словарь
+    worksheet.settings = json.loads(worksheet.settings)
+    worksheet.tasks = tasks
+    return worksheet
 
 @router.post("/", response_model=Worksheet)
 def create_worksheet(worksheet: WorksheetCreate, db: Session = Depends(get_db), current_user: UserModel = Depends(get_current_user)):

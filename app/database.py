@@ -3,6 +3,11 @@ from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 from app.config import settings
 
-engine = create_engine(settings.DATABASE_URL)
+# Для SQLite — автоматическое создание файла
+engine = create_engine(settings.DATABASE_URL, connect_args={"check_same_thread": False})
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
+
+# Создаём таблицы при запуске (только для SQLite)
+if "sqlite" in settings.DATABASE_URL:
+    Base.metadata.create_all(bind=engine)

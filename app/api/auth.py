@@ -33,7 +33,7 @@ def register(user: UserCreate, db: Session = Depends(get_db)):
     return db_user
 
 @router.post("/login")
-def login(form_ OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
+def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
     user = authenticate_user(db, form_data.username, form_data.password)
     if not user:
         raise HTTPException(
