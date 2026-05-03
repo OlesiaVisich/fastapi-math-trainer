@@ -1,0 +1,67 @@
+diff --git a/app/api/generate.py b/app/api/generate.py
+index 0000000..1111111 100644
+--- a/app/api/generate.py
++++ b/app/api/generate.py
+@@ -1,3 +1,4 @@
++"""Эндпоинт /api/generate: генерация заданий."""
+ import json
+ from datetime import datetime
+ from fastapi import APIRouter, Depends, HTTPException, status
+@@ -42,6 +43,10 @@ def generate_worksheet(
+     db.flush()  # Чтобы получить ID
+     db.refresh(db_worksheet)
+ 
++    # Сохраняем settings как JSON-строку (SQLite не хранит dict напрямую)
++    worksheet_data_dict = worksheet_data.dict()
++    worksheet_data_dict["settings"] = json.dumps(worksheet_data_dict["settings"], ensure_ascii=False)
++
+     db_worksheet = WorksheetModel(**worksheet_data_dict, user_id=current_user.id)
+     db.add(db_worksheet)
+     db.commit()
+diff --git a/app/api/worksheets.py b/app/api/worksheets.py
+index 0000000..2222222 100644
+--- a/app/api/worksheets.py
++++ b/app/api/worksheets.py
+@@ -1,3 +1,4 @@
++"""Эндпоинты для работы с карточками: CRUD."""
+ import json
+ from fastapi import APIRouter, Depends, HTTPException, status
+ from sqlalchemy.orm import Session
+@@ -20,6 +21,10 @@ def read_worksheet(worksheet_id: int, db: Session = Depends(get_db)):
+     if worksheet is None:
+         raise HTTPException(status_code=404, detail="Worksheet not found")
+ 
++    # Преобразуем строку settings обратно в dict для Pydantic-модели
++    if isinstance(worksheet.settings, str):
++        worksheet.settings = json.loads(worksheet.settings)
++
+     tasks = db.query(TaskModel).filter(TaskModel.worksheet_id == worksheet_id).order_by(TaskModel.order_index).all()
+     worksheet.tasks = tasks
+     return worksheet
+diff --git a/app/models.py b/app/models.py
+index 0000000..3333333 100644
+--- a/app/models.py
++++ b/app/models.py
+@@ -1,3 +1,4 @@
++"""Модели базы данных: User, Worksheet, Task."""
+ from sqlalchemy import Boolean, Column, ForeignKey, Integer, String, DateTime, Text
+ from sqlalchemy.sql import func
+ from app.database import Base
+@@ -13,7 +14,7 @@ class User(Base):
+     created_at = Column(DateTime(timezone=True), server_default=func.now())
+ 
+ class Worksheet(Base):
+-    __tablename__ = "worksheets"
++    __tablename__ = "worksheets"
+     id = Column(Integer, primary_key=True, index=True)
+     title = Column(String, nullable=True)
+     settings = Column(Text, nullable=False)  # Храним как JSON-строку
+diff --git a/app/schemas.py b/app/schemas.py
+index 0000000..4444444 100644
+--- a/app/schemas.py
++++ b/app/schemas.py
+@@ -1,3 +1,4 @@
++"""Pydantic-схемы для валидации данных."""
+ from pydantic import BaseModel
+ from typing import List, Optional, Literal
+ from datetime import datetime
