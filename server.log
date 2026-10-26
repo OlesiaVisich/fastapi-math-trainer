@@ -1,18 +1,9 @@
-INFO:     Started server process [1209]
+INFO:     Started server process [2172]
 INFO:     Waiting for application startup.
 INFO:     Application startup complete.
-INFO:     Uvicorn running on http://127.0.0.1:8001 (Press CTRL+C to quit)
-INFO:     127.0.0.1:50430 - "GET / HTTP/1.1" 200 OK
-INFO:     127.0.0.1:50432 - "GET /lessons-page HTTP/1.1" 200 OK
-INFO:     127.0.0.1:50434 - "POST /lessons/ HTTP/1.1" 200 OK
-INFO:     127.0.0.1:50436 - "POST /lessons/ HTTP/1.1" 200 OK
-INFO:     127.0.0.1:50438 - "POST /lessons/ HTTP/1.1" 200 OK
-INFO:     127.0.0.1:50440 - "GET /lessons/?school_class=9%D0%90 HTTP/1.1" 200 OK
-INFO:     127.0.0.1:50442 - "GET /lessons/classes HTTP/1.1" 200 OK
-INFO:     127.0.0.1:50444 - "GET /lessons/5/pdf HTTP/1.1" 200 OK
-INFO:     127.0.0.1:50446 - "DELETE /lessons/6 HTTP/1.1" 200 OK
-INFO:     127.0.0.1:50448 - "GET /lessons-page HTTP/1.1" 200 OK
-INFO:     Shutting down
-INFO:     Waiting for application shutdown.
-INFO:     Application shutdown complete.
-INFO:     Finished server process [1209]
+INFO:     Uvicorn running on http://127.0.0.1:8099 (Press CTRL+C to quit)
+INFO:     127.0.0.1:58054 - "GET / HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58056 - "GET /lessons-page HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58058 - "POST /lessons/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58060 - "GET /lessons/classes HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58062 - "POST /lessons/ HTTP/1.1" 200 OK
