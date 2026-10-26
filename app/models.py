@@ -1,5 +1,16 @@
-"""Модели базы данных: User, Worksheet, Task."""
-from sqlalchemy import Boolean, Column, ForeignKey, Integer, String, DateTime, Text
+"""Модели базы данных: User, Worksheet, Task, Lesson."""
+from datetime import datetime
+
+from sqlalchemy import (
+    Boolean,
+    Column,
+    Date,
+    ForeignKey,
+    Integer,
+    String,
+    DateTime,
+    Text,
+)
 from app.database import Base
 
 
@@ -33,3 +44,16 @@ class Task(Base):
     answer = Column(String, nullable=False)
     order_index = Column(Integer, nullable=False)
     worksheet_id = Column(Integer, ForeignKey("worksheets.id"))
+
+class Lesson(Base):
+    """Урок учителя: тема, описание, дата, домашняя работа, PDF с задачами."""
+
+    __tablename__ = "lessons"
+    id = Column(Integer, primary_key=True, index=True)
+    topic = Column(String, nullable=False)
+    description = Column(Text, nullable=True)
+    date = Column(Date, nullable=True)
+    homework = Column(Text, nullable=True)
+    pdf_filename = Column(String, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    user_id = Column(Integer, ForeignKey("users.id"))
