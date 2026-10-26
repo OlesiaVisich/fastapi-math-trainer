@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Кабинет учителя — Мои уроки</title>
+  <title>Кабинет учителя — Главная</title>
   <style>
     :root {
       --primary: #3b6ea5;
@@ -107,7 +107,8 @@
   <header>
     <h1>📚 Кабинет учителя</h1>
     <nav>
-      <a href="/" class="active">Мои уроки</a>
+      <a href="/" class="active">Главная</a>
+      <a href="/lessons-page">Мои уроки</a>
     </nav>
   </header>
 
@@ -123,8 +124,8 @@
         <label for="description">Текстовое описание</label>
         <textarea id="description" name="description" placeholder="План урока, цели, заметки…"></textarea>
 
-        <label for="date">Дата урока</label>
-        <input type="date" id="date" name="date">
+        <label for="school_class">Класс *</label>
+        <input type="text" id="school_class" name="school_class" required placeholder="Например: 9А">
 
         <label for="homework">Домашняя работа</label>
         <textarea id="homework" name="homework" placeholder="Номера упражнений, страницы…"></textarea>
@@ -137,14 +138,13 @@
       </form>
     </section>
 
-    <section>
-      <h2>Мои уроки</h2>
-      <div id="lessons"></div>
+    <section class="card">
+      <h2>Просмотр уроков</h2>
+      <p style="font-size:15px;">Все созданные уроки отображаются в разделе <a href="/lessons-page" style="color:var(--primary); font-weight:600;">«Мои уроки»</a>, сгруппированные по классам.</p>
     </section>
   </main>
 
   <script>
-    const lessonsEl = document.getElementById('lessons');
     const formEl = document.getElementById('lesson-form');
     const messageEl = document.getElementById('message');
 
@@ -154,71 +154,26 @@
       setTimeout(() => { messageEl.className = 'message'; }, 4000);
     }
 
-    function formatDate(iso) {
-      if (!iso) return '';
-      const d = new Date(iso);
-      return d.toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit', year: 'numeric' });
-    }
-
     function escapeHtml(s) {
       const div = document.createElement('div');
       div.textContent = s == null ? '' : String(s);
       return div.innerHTML;
     }
 
-    async function loadLessons() {
-      const res = await fetch('/lessons/');
-      if (!res.ok) { showMessage('Не удалось загрузить уроки', false); return; }
-      const lessons = await res.json();
-      if (!lessons.length) {
-        lessonsEl.innerHTML = '<div class="empty">Пока нет ни одного урока — создайте первый выше.</div>';
-        return;
-      }
-      lessonsEl.innerHTML = lessons.map(l => `
-        <div class="lesson">
-          <div class="lesson-top">
-            <div class="lesson-topic">${escapeHtml(l.topic)}</div>
-            <div class="lesson-date">${l.date ? formatDate(l.date) : ''}</div>
-          </div>
-          ${l.description ? `<div class="lesson-desc">${escapeHtml(l.description)}</div>` : ''}
-          ${l.homework ? `<div class="lesson-hw"><b>Домашняя работа:</b> ${escapeHtml(l.homework)}</div>` : ''}
-          <div class="lesson-footer">
-            ${l.pdf_filename
-              ? `<a href="/lessons/${l.id}/pdf" download>📎 Скачать задачи (PDF)</a>`
-              : '<span class="pdf-none">PDF с задачами не прикреплён</span>'}
-            <button class="btn-del" onclick="deleteLesson(${l.id})">Удалить</button>
-          </div>
-        </div>
-      `).join('');
-    }
-
-    async function deleteLesson(id) {
-      if (!confirm('Удалить этот урок?')) return;
-      const res = await fetch('/lessons/' + id, { method: 'DELETE' });
-      if (res.ok) {
-        showMessage('Урок удалён', true);
-        loadLessons();
-      } else {
-        showMessage('Не удалось удалить урок', false);
-      }
-    }
-
     formEl.addEventListener('submit', async (e) => {
       e.preventDefault();
       const data = new FormData(formEl);
       if (!data.get('topic')) { showMessage('Укажите тему урока', false); return; }
+      if (!data.get('school_class')) { showMessage('Укажите класс', false); return; }
       const res = await fetch('/lessons/', { method: 'POST', body: data });
       if (res.ok) {
-        showMessage('Урок создан', true);
+        showMessage('Урок создан. Смотрите его в разделе «Мои уроки»', true);
         formEl.reset();
-        loadLessons();
       } else {
         const err = await res.json().catch(() => ({}));
         showMessage(err.detail ? JSON.stringify(err.detail) : 'Ошибка при создании урока', false);
       }
     });
-
-    loadLessons();
   </script>
 </body>
 </html>

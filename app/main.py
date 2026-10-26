@@ -18,5 +18,11 @@ STATIC_DIR = os.path.join(os.path.dirname(__file__), "static")
 
 @app.get("/", include_in_schema=False)
 def index():
-    """Главная страница сайта — раздел «Мои уроки»."""
+    """Главная страница сайта."""
     return FileResponse(os.path.join(STATIC_DIR, "index.html"))
+
+
+@app.get("/lessons-page", include_in_schema=False)
+def lessons_page():
+    """Страница «Мои уроки»."""
+    return FileResponse(os.path.join(STATIC_DIR, "lessons.html"))

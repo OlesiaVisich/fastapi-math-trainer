@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Кабинет учителя — Мои уроки</title>
+  <style>
+    :root {
+      --primary: #3b6ea5;
+      --primary-dark: #2f5a88;
+      --bg: #f4f6f9;
+      --card: #ffffff;
+      --text: #22303e;
+      --muted: #6b7a8c;
+      --border: #dde4ec;
+      --danger: #c0392b;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: "Segoe UI", Arial, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+    }
+    header {
+      background: var(--primary);
+      color: #fff;
+      padding: 16px 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    header h1 { font-size: 20px; font-weight: 600; }
+    nav a {
+      color: #fff;
+      text-decoration: none;
+      margin-left: 18px;
+      font-size: 15px;
+      opacity: .85;
+    }
+    nav a.active, nav a:hover { opacity: 1; font-weight: 600; }
+    main { max-width: 960px; margin: 24px auto; padding: 0 16px; }
+    h2 { margin-bottom: 16px; font-size: 22px; }
+    .class-section { margin-bottom: 30px; }
+    .class-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 12px;
+      padding-bottom: 6px;
+      border-bottom: 2px solid var(--primary);
+    }
+    .class-header h3 { font-size: 19px; color: var(--primary-dark); }
+    .class-count {
+      background: var(--primary);
+      color: #fff;
+      font-size: 12px;
+      border-radius: 10px;
+      padding: 2px 10px;
+    }
+    .lesson {
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 16px 20px;
+      margin-bottom: 14px;
+      background: var(--card);
+    }
+    .lesson-top { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
+    .lesson-topic { font-size: 17px; font-weight: 600; }
+    .lesson-class { color: var(--muted); font-size: 14px; white-space: nowrap; }
+    .lesson-desc { margin-top: 8px; font-size: 14px; white-space: pre-wrap; }
+    .lesson-hw { margin-top: 8px; font-size: 14px; }
+    .lesson-hw b { color: var(--primary-dark); }
+    .lesson-footer { margin-top: 10px; display: flex; gap: 14px; align-items: center; font-size: 14px; }
+    .lesson-footer a { color: var(--primary); text-decoration: none; }
+    .lesson-footer a:hover { text-decoration: underline; }
+    .pdf-none { color: var(--muted); }
+    .btn-del {
+      background: transparent;
+      color: var(--danger);
+      border: 1px solid var(--danger);
+      border-radius: 6px;
+      padding: 4px 12px;
+      font-size: 13px;
+      cursor: pointer;
+      margin-top: 0;
+      margin-left: auto;
+    }
+    .btn-del:hover { background: var(--danger); color: #fff; }
+    .empty { color: var(--muted); font-size: 15px; padding: 8px 0; }
+    .message { padding: 10px 14px; border-radius: 6px; margin-bottom: 14px; font-size: 14px; display: none; }
+    .message.ok { display: block; background: #e6f4ea; color: #1e7e34; }
+    .message.err { display: block; background: #fdecea; color: var(--danger); }
+    .btn-new {
+      display: inline-block;
+      background: var(--primary);
+      color: #fff;
+      text-decoration: none;
+      border-radius: 6px;
+      padding: 9px 16px;
+      font-size: 14px;
+      margin-bottom: 20px;
+    }
+    .btn-new:hover { background: var(--primary-dark); }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>📚 Кабинет учителя</h1>
+    <nav>
+      <a href="/">Главная</a>
+      <a href="/lessons-page" class="active">Мои уроки</a>
+    </nav>
+  </header>
+
+  <main>
+    <div id="message" class="message"></div>
+    <h2>Мои уроки</h2>
+    <a class="btn-new" href="/">+ Создать урок</a>
+    <div id="lessons"><div class="empty">Загрузка…</div></div>
+  </main>
+
+  <script>
+    const lessonsEl = document.getElementById('lessons');
+    const messageEl = document.getElementById('message');
+
+    function showMessage(text, ok) {
+      messageEl.textContent = text;
+      messageEl.className = 'message ' + (ok ? 'ok' : 'err');
+      setTimeout(() => { messageEl.className = 'message'; }, 4000);
+    }
+
+    function escapeHtml(s) {
+      const div = document.createElement('div');
+      div.textContent = s == null ? '' : String(s);
+      return div.innerHTML;
+    }
+
+    function lessonCard(l, showClass) {
+      return `
+        <div class="lesson">
+          <div class="lesson-top">
+            <div class="lesson-topic">${escapeHtml(l.topic)}</div>
+            ${showClass ? `<div class="lesson-class">Класс: ${escapeHtml(l.school_class || '—')}</div>` : ''}
+          </div>
+          ${l.description ? `<div class="lesson-desc">${escapeHtml(l.description)}</div>` : ''}
+          ${l.homework ? `<div class="lesson-hw"><b>Домашняя работа:</b> ${escapeHtml(l.homework)}</div>` : ''}
+          <div class="lesson-footer">
+            ${l.pdf_filename
+              ? `<a href="/lessons/${l.id}/pdf" download>📎 Скачать задачи (PDF)</a>`
+              : '<span class="pdf-none">PDF с задачами не прикреплён</span>'}
+            <button class="btn-del" onclick="deleteLesson(${l.id})">Удалить</button>
+          </div>
+        </div>`;
+    }
+
+    async function loadLessons() {
+      const res = await fetch('/lessons/');
+      if (!res.ok) {
+        lessonsEl.innerHTML = '<div class="empty">Не удалось загрузить уроки.</div>';
+        showMessage('Не удалось загрузить уроки', false);
+        return;
+      }
+      const lessons = await res.json();
+      if (!lessons.length) {
+        lessonsEl.innerHTML = '<div class="empty">Пока нет ни одного урока. <a href="/" style="color:var(--primary)">Создайте первый</a>.</div>';
+        return;
+      }
+
+      // Группировка уроков по классам
+      const groups = {};
+      for (const l of lessons) {
+        const cls = l.school_class || 'Без класса';
+        (groups[cls] = groups[cls] || []).push(l);
+      }
+
+      const withClass = Object.keys(groups).filter(c => c !== 'Без класса').sort((a, b) => a.localeCompare(b, 'ru'));
+      const withoutClass = groups['Без класса'] || [];
+      const ordered = [...withClass, ...(withoutClass.length ? ['Без класса'] : [])];
+
+      lessonsEl.innerHTML = ordered.map(cls => `
+        <section class="class-section">
+          <div class="class-header">
+            <h3>${cls === 'Без класса' ? 'Без класса' : 'Класс: ' + escapeHtml(cls)}</h3>
+            <span class="class-count">${groups[cls].length}</span>
+          </div>
+          ${groups[cls].map(l => lessonCard(l, false)).join('')}
+        </section>
+      `).join('');
+    }
+
+    async function deleteLesson(id) {
+      if (!confirm('Удалить этот урок?')) return;
+      const res = await fetch('/lessons/' + id, { method: 'DELETE' });
+      if (res.ok) {
+        showMessage('Урок удалён', true);
+        loadLessons();
+      } else {
+        showMessage('Не удалось удалить урок', false);
+      }
+    }
+
+    loadLessons();
+  </script>
+</body>
+</html>

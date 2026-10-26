@@ -46,27 +46,18 @@ def _save_pdf(file: UploadFile) -> str:
 def create_lesson(
     topic: str = Form(...),
     description: Optional[str] = Form(None),
-    date: Optional[str] = Form(None),
+    school_class: Optional[str] = Form(None),
     homework: Optional[str] = Form(None),
     tasks_pdf: Optional[UploadFile] = File(None),
     db: Session = Depends(get_db),
 ):
-    """Создаёт урок: тема, текстовое описание, дата, домашняя работа, PDF с задачами."""
+    """Создаёт урок: тема, текстовое описание, класс, домашняя работа, PDF с задачами."""
     lesson = LessonModel(
         topic=topic,
         description=description,
+        school_class=(school_class or "").strip() or None,
         homework=homework,
     )
-    if date:
-        from datetime import datetime as dt
-
-        try:
-            lesson.date = dt.strptime(date, "%Y-%m-%d").date()
-        except ValueError:
-            raise HTTPException(
-                status_code=400,
-                detail="Неверный формат даты. Ожидается ГГГГ-ММ-ДД",
-            )
     if tasks_pdf and tasks_pdf.filename:
         lesson.pdf_filename = _save_pdf(tasks_pdf)
     db.add(lesson)
@@ -76,11 +67,32 @@ def create_lesson(
 
 
 @router.get("/", response_model=List[Lesson])
-def list_lessons(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
-    """Получает список уроков (раздел «Мои уроки»), новые сверху."""
-    return (
-        db.query(LessonModel).order_by(LessonModel.id.desc()).offset(skip).limit(limit).all()
+def list_lessons(
+    school_class: Optional[str] = None,
+    skip: int = 0,
+    limit: int = 100,
+    db: Session = Depends(get_db),
+):
+    """Получает список уроков (раздел «Мои уроки»), новые сверху.
+
+    Параметр school_class фильтрует уроки по классу.
+    """
+    query = db.query(LessonModel)
+    if school_class:
+        query = query.filter(LessonModel.school_class == school_class)
+    return query.order_by(LessonModel.id.desc()).offset(skip).limit(limit).all()
+
+
+@router.get("/classes")
+def list_classes(db: Session = Depends(get_db)):
+    """Возвращает список классов, в которых есть уроки (для разделов в «Моих уроках»)."""
+    rows = (
+        db.query(LessonModel.school_class)
+        .filter(LessonModel.school_class.isnot(None))
+        .distinct()
+        .all()
     )
+    return {"classes": sorted(r[0] for r in rows)}
 
 
 @router.get("/{lesson_id}", response_model=Lesson)

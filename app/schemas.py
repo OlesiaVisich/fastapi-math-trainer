@@ -103,7 +103,7 @@ class LessonBase(BaseModel):
 
     topic: str
     description: Optional[str] = None
-    date: Optional[dt_module.date] = None
+    school_class: Optional[str] = None
     homework: Optional[str] = None
 
 

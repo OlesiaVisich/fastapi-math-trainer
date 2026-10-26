@@ -46,13 +46,13 @@ class Task(Base):
     worksheet_id = Column(Integer, ForeignKey("worksheets.id"))
 
 class Lesson(Base):
-    """Урок учителя: тема, описание, дата, домашняя работа, PDF с задачами."""
+    """Урок учителя: тема, описание, класс, домашняя работа, PDF с задачами."""
 
     __tablename__ = "lessons"
     id = Column(Integer, primary_key=True, index=True)
     topic = Column(String, nullable=False)
     description = Column(Text, nullable=True)
-    date = Column(Date, nullable=True)
+    school_class = Column(String, nullable=True, index=True)
     homework = Column(Text, nullable=True)
     pdf_filename = Column(String, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
