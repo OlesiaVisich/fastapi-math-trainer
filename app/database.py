@@ -11,4 +11,7 @@ SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
 
 if "sqlite" in settings.DATABASE_URL:
+    # Импортируем модели, чтобы все таблицы были зарегистрированы в метаданных.
+    from app import models  # noqa: E402,F401
+
     Base.metadata.create_all(bind=engine)
