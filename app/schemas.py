@@ -1,5 +1,6 @@
 """Pydantic-схемы для валидации данных."""
-from datetime import datetime
+import datetime as dt_module
+from datetime import date, datetime
 from typing import List, Literal, Optional
 
 from pydantic import BaseModel
@@ -96,3 +97,29 @@ class GenerateResponse(BaseModel):
 
     worksheet_id: int
     tasks: List[TaskSchema]
+
+class LessonBase(BaseModel):
+    """Базовая модель урока."""
+
+    topic: str
+    description: Optional[str] = None
+    date: Optional[dt_module.date] = None
+    homework: Optional[str] = None
+
+
+class LessonCreate(LessonBase):
+    """Создание урока (поля формы + опциональный PDF-файл)."""
+
+
+class Lesson(LessonBase):
+    """Урок с ID, файлом задач и метаданными."""
+
+    id: int
+    user_id: Optional[int] = None
+    pdf_filename: Optional[str] = None
+    created_at: datetime
+
+    class Config:
+        """Конфигурация модели."""
+
+        from_attributes = True
