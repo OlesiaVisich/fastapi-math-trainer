@@ -1,1 +1,6 @@
+*.pyc
+__pycache__/
+.venv/
+test.db
+app/uploads/
 update.b64
