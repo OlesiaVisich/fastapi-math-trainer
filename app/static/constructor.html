@@ -108,7 +108,7 @@
     }
     .sheet-item {
       position: relative;
-      font-size: 15px;
+      font-size: 14px;
       line-height: 1.5;
       padding: 10px 40px 10px 4px;
       border-bottom: 1px dotted #e2e6ec;
@@ -136,12 +136,21 @@
     .item-remove:hover { color: var(--danger); }
     .item-body p { margin: 2px 0; white-space: pre-wrap; overflow-wrap: anywhere; }
     /* Ограничение размеров отрендеренного LaTeX (MathJax): формулы не должны
-       выходить за пределы листа и занимать весь экран */
-    mjx-container { max-width: 100%; }
+       выходить за пределы листа и занимать весь экран.
+       Ключевой момент: у SVG MathJax выставляет width/height в единицах "ex",
+       из-за чего без явного font-size формула наследует огромный кегль и
+       "растёт" на весь экран. Поэтому задаём font-size явно и переопределяем
+       размеры контейнера/сvg. */
+    .sheet-item { font-size: 14px; }
+    mjx-container { max-width: 100%; font-size: 14px !important; }
     mjx-container[display="true"] { display: block; margin: 4px 0 !important; }
-    /* Формула шире листа -> сжимается до ширины листа, высота масштабируется
-       автоматически (svg имеет корректный viewBox) */
-    mjx-container svg { max-width: 100% !important; height: auto; display: inline-block; }
+    mjx-container svg {
+      max-width: 100% !important;
+      height: auto !important;
+      width: auto !important;
+      font-size: 14px;
+      display: inline-block;
+    }
 
     /* ---------- Панель заданий ---------- */
     .panel {
