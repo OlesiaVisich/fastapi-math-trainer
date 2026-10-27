@@ -265,7 +265,7 @@
     }
     .task-card:hover { box-shadow: 0 3px 10px rgba(47, 90, 136, .18); transform: translateY(-1px); }
     .task-card.dragging { opacity: .5; }
-    .task-card.on-sheet { opacity: .55; cursor: default; }
+    .task-card.on-sheet { opacity: .75; cursor: grab; }
     .task-title { font-size: 14px; font-weight: 600; }
     .badge {
       display: inline-block;
@@ -281,12 +281,41 @@
     .badge.hard { background: #c0392b; }
     .badge.none { background: #9aa8b8; }
     .task-hint { font-size: 12px; color: var(--muted); margin-top: 4px; }
+    .task-body {
+      font-family: "Computer Modern", "Latin Modern Roman", "CMU Serif", Georgia, serif;
+      font-size: 14px;
+      line-height: 1.45;
+      color: #1c1c1c;
+      margin-top: 6px;
+      word-wrap: break-word;
+      overflow-wrap: anywhere;
+      max-height: 300px;
+      overflow-y: auto;
+    }
+    .task-body p { margin: 2px 0; white-space: pre-wrap; }
+    .task-body mjx-container { font-size: 14px !important; margin: 2px 0 !important; }
+    .task-body mjx-container[display="true"] { display: block; text-align: center; }
+    .task-actions { display: flex; align-items: center; gap: 8px; margin-top: 6px; }
+    .add-btn {
+      border: 1px solid var(--primary);
+      background: #eef4ff;
+      color: var(--primary);
+      font-size: 12px;
+      font-weight: 600;
+      border-radius: 6px;
+      padding: 3px 10px;
+      cursor: pointer;
+      transition: background .12s ease;
+    }
+    .add-btn:hover { background: #dbe8ff; }
+    .add-btn:disabled { opacity: .5; cursor: default; }
+    .task-card.on-sheet .add-btn { background: #e7f6ec; border-color: #2e9e57; color: #2e9e57; }
     .empty { color: var(--muted); font-size: 14px; padding: 16px 0; }
 
     /* ---------- Печать ---------- */
     @media print {
       body { background: #fff; }
-      header, .panel, .sheet-toolbar, .item-remove, .sheet-empty-hint { display: none !important; }
+      header, .panel, .sheet-toolbar, .item-remove, .sheet-empty-hint, .task-actions, .task-card .title-meta { display: none !important; }
       .layout { display: block; margin: 0; padding: 0; max-width: none; }
       .sheet-wrap { position: static; }
       .sheet { box-shadow: none; border: none; max-width: none; padding: 0; min-height: auto; }
@@ -468,7 +497,7 @@
       );
     }
 
-    function renderTaskList() {
+    async function renderTaskList() {
       const tasks = getFilteredTasks();
       const onSheetIds = new Set(sheetItems.map(i => i.task_id));
       if (!tasks.length) {
@@ -489,23 +518,49 @@
         ${byClass[cls].map(t => {
           const [label, css] = DIFF_LABELS[t.difficulty] || ['Без сложности', 'none'];
           const already = onSheetIds.has(t.id);
+          const bodyHtml = t.latex_code
+            ? escapeHtml(t.latex_code)
+                .split(/\r?\n/).map(line => line ? `<p>${line}</p>` : '<p>&nbsp;</p>').join('')
+            : '<p class="task-hint">Текст задания не задан</p>';
           return `
-            <div class="task-card ${already ? 'on-sheet' : ''}" draggable="${!already}" data-id="${t.id}">
+            <div class="task-card ${already ? 'on-sheet' : ''}" draggable="true" data-id="${t.id}" title="${escapeHtml((t.topic || '') + (t.school_class ? ' · ' + t.school_class : ''))}">
               <div class="task-title">${escapeHtml(t.topic)} <span class="badge ${css}">${label}</span></div>
-              <div class="task-hint">${already ? '✔ уже на листе' : '⠿ перетащите на лист'}</div>
+              <div class="task-body">${bodyHtml}</div>
+              <div class="task-actions">
+                <button type="button" class="add-btn" data-add="${t.id}" ${already ? 'disabled' : ''}>${already ? '✔ Уже на листе' : '＋ На лист'}</button>
+                <span class="task-hint">⠿ или перетащите на лист</span>
+              </div>
             </div>`;
         }).join('')}
       `).join('');
 
       taskListEl.querySelectorAll('.task-card').forEach(card => {
         card.addEventListener('dragstart', (e) => {
-          if (card.classList.contains('on-sheet')) { e.preventDefault(); return; }
           e.dataTransfer.setData('text/plain', JSON.stringify({ source: 'panel', id: Number(card.dataset.id) }));
           e.dataTransfer.effectAllowed = 'copy';
           card.classList.add('dragging');
         });
         card.addEventListener('dragend', () => card.classList.remove('dragging'));
       });
+
+      // кнопка быстрой добавления задания на лист
+      taskListEl.querySelectorAll('.add-btn[data-add]').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          const id = Number(btn.dataset.add);
+          if (sheetItems.some(i => i.task_id === id)) return;
+          sheetItems.push({ task_id: id });
+          saveSheet();
+          renderSheet();   // перерисует и список панели (через renderTaskList)
+        });
+      });
+
+      // рендер LaTeX-формул в карточках панели
+      if (window.MathJax && MathJax.typesetPromise) {
+        try { await MathJax.typesetPromise([taskListEl]); } catch (e) {}
+      } else if (window.MathJax && MathJax.startup) {
+        try { await MathJax.startup.promise.then(() => MathJax.typesetPromise([taskListEl])); } catch (e) {}
+      }
     }
 
     /* ---------- Рендер листа ---------- */
@@ -584,7 +639,7 @@
         });
         itemsEl.appendChild(div);
       }
-      renderTaskList();
+      await renderTaskList();
     }
 
     /* ---------- Режим форматирования текста задания ---------- */
