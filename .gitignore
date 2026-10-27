@@ -1,6 +1,1 @@
-*.log
-.venv/
-__pycache__/
-*.pyc
-test.db
-app/uploads/
+nohup.out

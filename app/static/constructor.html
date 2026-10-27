@@ -135,6 +135,10 @@
     }
     .item-remove:hover { color: var(--danger); }
     .item-body p { margin: 2px 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+    .item-body b, .item-body strong { font-weight: 700; }
+    .item-body i, .item-body em { font-style: italic; }
+    .item-body u { text-decoration: underline; }
+    @media print { .format-toolbar, .edit-hint { display: none !important; } }
     /* ---------- Рендер LaTeX как в Overleaf ----------
        Задание на листе оформляется как компилированный LaTeX-документ:
        шрифт Computer Modern (серифный), 14px, формулы — обычным текстовым
@@ -159,6 +163,60 @@
       margin: 8px 0 !important;
       overflow-x: auto;             /* широкая формула скроллится, а не растёт */
       overflow-y: hidden;
+    }
+
+    /* ---------- Панель форматирования текста задания ---------- */
+    .format-toolbar {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      flex-wrap: wrap;
+      margin: 2px 0 6px;
+      padding: 3px 4px;
+      background: #f4f7fb;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      width: fit-content;
+      font-family: "Segoe UI", Arial, sans-serif;
+    }
+    .fmt-btn {
+      min-width: 26px;
+      height: 24px;
+      padding: 0 5px;
+      border: 1px solid transparent;
+      border-radius: 4px;
+      background: transparent;
+      cursor: pointer;
+      font-size: 13px;
+      color: #333;
+      line-height: 1;
+    }
+    .fmt-btn:hover { background: #e3ebf5; border-color: var(--border); }
+    .fmt-btn.b { font-weight: 700; }
+    .fmt-btn.i { font-style: italic; font-family: Georgia, serif; }
+    .fmt-btn.u { text-decoration: underline; }
+    .fmt-sep { width: 1px; height: 18px; background: var(--border); margin: 0 3px; }
+    .fmt-size {
+      height: 24px;
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      background: #fff;
+      font-size: 12px;
+      padding: 0 2px;
+      cursor: pointer;
+      font-family: "Segoe UI", Arial, sans-serif;
+    }
+    .item-body.editing {
+      outline: 2px dashed var(--primary);
+      outline-offset: 3px;
+      border-radius: 2px;
+      background: rgba(59, 130, 246, .04);
+    }
+    .edit-hint {
+      font-size: 11px;
+      color: var(--muted);
+      font-family: "Segoe UI", Arial, sans-serif;
+      margin-left: 6px;
     }
 
     /* ---------- Панель заданий ---------- */
@@ -320,8 +378,39 @@
     const taskListEl = document.getElementById('task-list');
 
     let allTasks = [];
-    let sheetItems = []; // [{task_id}, ...]
+    // item: {task_id, edited?, html?, font_size?} — edited/html хранят
+    // отформатированный учителем текст задания (жирный/курсив/подчёркивание/размер)
+    let sheetItems = [];
     const STORAGE_KEY = 'workshop_sheet_v1';
+
+    /* ---------- sanitization for saved rich HTML ---------- */
+    const ALLOWED_TAGS = new Set(['B', 'STRONG', 'I', 'EM', 'U', 'BR', 'P', 'SPAN', 'FONT']);
+    function sanitizeHtml(html) {
+      const tpl = document.createElement('template');
+      tpl.innerHTML = html || '';
+      const walk = (node) => {
+        [...node.childNodes].forEach(child => {
+          if (child.nodeType === 1) { // element
+            if (!ALLOWED_TAGS.has(child.tagName)) {
+              // replace disallowed element with its text content
+              child.replaceWith(document.createTextNode(child.textContent));
+              return;
+            }
+            [...child.attributes].forEach(a => child.removeAttribute(a.name));
+            // allow only inline font-size on spans
+            if (child.tagName === 'SPAN' && child.style.fontSize) {
+              const fs = child.style.fontSize;
+              child.setAttribute('style', 'font-size:' + fs);
+            }
+            walk(child);
+          } else if (child.nodeType !== 3) { // not text
+            child.remove();
+          }
+        });
+      };
+      walk(tpl.content);
+      return tpl.innerHTML;
+    }
 
     function escapeHtml(s) {
       const div = document.createElement('div');
@@ -428,12 +517,35 @@
       }
     }
 
+    const FONT_SIZES = [10, 12, 14, 16, 18, 20, 24];
+
+    function defaultHtml(t) {
+      return escapeHtml(t.latex_code || '')
+        .split(/\r?\n/).map(line => line ? `<p>${line}</p>` : '<p>&nbsp;</p>').join('');
+    }
+
+    function buildToolbar(idx) {
+      const sizeSel = FONT_SIZES.map(s => `<option value="${s}">${s}</option>`).join('');
+      return `
+        <div class="format-toolbar" data-idx="${idx}">
+          <button type="button" class="fmt-btn b" title="Жирный (Ctrl+B)" data-cmd="bold"><b>B</b></button>
+          <button type="button" class="fmt-btn i" title="Курсив (Ctrl+I)" data-cmd="italic">I</button>
+          <button type="button" class="fmt-btn u" title="Подчёркнутый (Ctrl+U)" data-cmd="underline">U</button>
+          <span class="fmt-sep"></span>
+          <select class="fmt-size" title="Размер шрифта" data-cmd="fontSize">
+            <option value="">Размер…</option>
+            ${sizeSel}
+          </select>
+          <span class="edit-hint">✏️ режим правки — выделите текст и нажмите кнопку</span>
+        </div>`;
+    }
+
     async function renderSheet() {
       hintEl.style.display = sheetItems.length ? 'none' : 'block';
       itemsEl.innerHTML = '';
-      sheetItems.forEach((item, idx) => {
+      for (const [idx, item] of sheetItems.entries()) {
         const t = allTasks.find(x => x.id === item.task_id);
-        if (!t) return;
+        if (!t) continue;
         const div = document.createElement('div');
         div.className = 'sheet-item';
         div.draggable = true;
@@ -448,17 +560,21 @@
           <div class="item-body"></div>
           <button class="item-remove" title="Убрать с листа" onclick="removeItem(${idx})">✕</button>`;
         const body = div.querySelector('.item-body');
-        if (t.latex_code) {
+        if (t.latex_code || item.edited) {
           // Рендер "как скомпилированный LaTeX-файл": серифный шрифт Computer
           // Modern, 14px; текст и формулы обрабатывает MathJax (CHTML).
           body.classList.add('latex-doc');
-          body.innerHTML = escapeHtml(t.latex_code)
-            .split(/\r?\n/).map(line => line ? `<p>${line}</p>` : '<p>&nbsp;</p>').join('');
+          body.innerHTML = item.edited ? sanitizeHtml(item.html || '') : defaultHtml(t);
+          if (item.font_size) body.style.fontSize = item.font_size + 'px';
           typeset(body);
+          // двойной клик по тексту задания включает режим форматирования
+          body.addEventListener('dblclick', () => startEdit(idx, body));
+          body.title = 'Двойной клик — включить режим форматирования текста';
         } else {
           body.innerHTML = '<p style="color:#9aa8b8;">Текст задания не добавлен (LaTeX-код пуст).</p>';
         }
         div.addEventListener('dragstart', (e) => {
+          if (body.isContentEditable) { e.preventDefault(); return; }
           e.dataTransfer.setData('text/plain', JSON.stringify({ source: 'sheet', index: idx }));
           e.dataTransfer.effectAllowed = 'move';
           div.classList.add('dragging');
@@ -468,9 +584,131 @@
           clearDropMarks();
         });
         itemsEl.appendChild(div);
-      });
+      }
       renderTaskList();
     }
+
+    /* ---------- Режим форматирования текста задания ---------- */
+    let currentEditing = null; // { idx, body, toolbar }
+
+    function unwrapMathContainers(body) {
+      // MathJax-контент нельзя редактировать/форматировать — восстанавливаем
+      // исходный LaTeX-текст внутри контейнеров (mjx-container хранит оригинал
+      // в свойстве .originalText или атрибуте data-latex).
+      body.querySelectorAll('mjx-container').forEach(c => {
+        const disp = c.getAttribute('display') === 'true';
+        let tex = '';
+        if (typeof c.originalText === 'string') tex = c.originalText;
+        else if (c.start && typeof c.start.n === 'string') tex = c.start.n;
+        const txt = c.textContent || '';
+        const src = tex || txt;
+        const wrapper = document.createTextNode((disp ? '$$' : '$') + src + (disp ? '$$' : '$'));
+        c.replaceWith(wrapper);
+      });
+    }
+
+    async function stopEdit(save) {
+      if (!currentEditing) return;
+      const { idx, body, toolbar } = currentEditing;
+      const item = sheetItems[idx];
+      currentEditing = null;         // блокируем реентранность
+      // перед сохранением заменяем отрендеренные формулы на LaTeX-исходник,
+      // иначе в сохранённый HTML попадёт тяжёлый MathJax-контент.
+      // Сначала даём MathJax досчитать очередь typesetPromise, чтобы он не
+      // подменил содержимое после нашей замены.
+      try {
+        if (window.MathJax && MathJax.startup && MathJax.startup.promise) {
+          await MathJax.startup.promise;
+        }
+        if (window.MathJax && MathJax.typesetPromise) {
+          await MathJax.typesetClear([body]);
+        }
+      } catch (e) { /* ignore */ }
+      unwrapMathContainers(body);
+      if (save && item) {
+        item.html = sanitizeHtml(body.innerHTML);
+        item.edited = true;
+        item.font_size = parseInt(body.style.fontSize, 10) || null;
+        saveSheet();
+      }
+      body.contentEditable = 'false';
+      body.removeAttribute('contenteditable');
+      body.classList.remove('editing');
+      toolbar.remove();
+      if (save && item) renderSheet();
+    }
+
+    function startEdit(idx, body) {
+      if (currentEditing) { stopEdit(true); return; }
+      const div = body.closest('.sheet-item');
+      const toolbarEl = document.createElement('div');
+      toolbarEl.innerHTML = buildToolbar(idx);
+      const toolbar = toolbarEl.firstElementChild;
+      div.insertBefore(toolbar, body);
+
+      // размер в выпадающем списке = текущий размер тела задания
+      const sizeSel = toolbar.querySelector('.fmt-size');
+      const curFs = parseInt(body.style.fontSize, 10);
+      if (curFs && FONT_SIZES.includes(curFs)) sizeSel.value = String(curFs);
+
+      // на время правки показываем LaTeX-исходник вместо отрендеренных формул
+      unwrapMathContainers(body);
+      body.setAttribute('contenteditable', 'true');
+      body.spellcheck = false;
+      body.classList.add('editing');
+      div.draggable = false;
+      currentEditing = { idx, body, toolbar };
+      body.focus();
+
+      toolbar.querySelectorAll('.fmt-btn').forEach(btn => {
+        btn.addEventListener('mousedown', (e) => e.preventDefault()); // не терять выделение
+        btn.addEventListener('click', () => {
+          document.execCommand(btn.dataset.cmd, false, null);
+          body.focus();
+        });
+      });
+      sizeSel.addEventListener('change', () => {
+        const v = sizeSel.value;
+        if (!v) return;
+        const sel = window.getSelection();
+        if (sel && !sel.isCollapsed && body.contains(sel.anchorNode)) {
+          // изменяем размер только выделенного фрагмента: обёртываем выделение
+          // во временный маркер и заменяем его на span с нужным кеглем
+          try {
+            const markerId = 'fs-marker-' + Date.now();
+            document.execCommand('insertHTML', false, `<span id="${markerId}">\u200b</span>`);
+            const marker = document.getElementById(markerId);
+            if (marker) {
+              const range = document.createRange();
+              range.setStartBefore(marker.previousSibling || marker);
+              range.setEndAfter(marker);
+              const span = document.createElement('span');
+              span.style.fontSize = v + 'px';
+              while (range.cloneContents().firstChild) {
+                span.appendChild(document.importNode(range.extractContents().firstChild, true));
+              }
+              marker.replaceWith(span);
+            }
+          } catch (err) { /* ignore */ }
+        } else {
+          body.style.fontSize = v + 'px'; // размер всего задания
+        }
+        sizeSel.value = '';
+        body.focus();
+      });
+      // Ctrl+B / I / U работают штатно в contenteditable
+      body.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') { stopEdit(true); }
+      });
+    }
+
+    // клик вне редактируемого блока завершает правку с сохранением
+    document.addEventListener('mousedown', (e) => {
+      if (!currentEditing) return;
+      const { body, toolbar } = currentEditing;
+      if (body.contains(e.target) || toolbar.contains(e.target)) return;
+      stopEdit(true);
+    });
 
     function clearDropMarks() {
       itemsEl.querySelectorAll('.drop-before, .drop-after').forEach(el => {
