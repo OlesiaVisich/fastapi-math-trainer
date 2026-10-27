@@ -74,12 +74,13 @@ class TodoItem(Base):
 
 
 class Assignment(Base):
-    """Задание для учеников: класс, тема, сложность."""
+    """Задание для учеников: класс, тема, сложность, LaTeX-код."""
 
     __tablename__ = "assignments"
     id = Column(Integer, primary_key=True, index=True)
     school_class = Column(String, nullable=False, index=True)
     topic = Column(String, nullable=False)
     difficulty = Column(String, nullable=True, index=True)
+    latex_code = Column(Text, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     user_id = Column(Integer, ForeignKey("users.id"))

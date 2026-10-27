@@ -41,9 +41,10 @@ def create_assignment(
     school_class: str = Form(...),
     topic: str = Form(...),
     difficulty: Optional[str] = Form(None),
+    latex_code: Optional[str] = Form(None),
     db: Session = Depends(get_db),
 ):
-    """Создаёт задание: класс, тема и сложность."""
+    """Создаёт задание: класс, тема, сложность и LaTeX-код."""
     if not school_class.strip():
         raise HTTPException(status_code=400, detail="Класс не может быть пустым")
     if not topic.strip():
@@ -52,6 +53,7 @@ def create_assignment(
         school_class=school_class.strip(),
         topic=topic.strip(),
         difficulty=_validate_difficulty(difficulty),
+        latex_code=(latex_code or "").strip() or None,
     )
     db.add(assignment)
     db.commit()
@@ -111,9 +113,10 @@ def update_assignment(
     school_class: Optional[str] = Form(None),
     topic: Optional[str] = Form(None),
     difficulty: Optional[str] = Form(None),
+    latex_code: Optional[str] = Form(None),
     db: Session = Depends(get_db),
 ):
-    """Обновляет задание (класс, тема, сложность)."""
+    """Обновляет задание (класс, тема, сложность, LaTeX-код)."""
     assignment = (
         db.query(Assignment).filter(Assignment.id == assignment_id).first()
     )
@@ -129,6 +132,8 @@ def update_assignment(
         assignment.topic = topic.strip()
     if difficulty is not None:
         assignment.difficulty = _validate_difficulty(difficulty)
+    if latex_code is not None:
+        assignment.latex_code = latex_code.strip() or None
     db.commit()
     db.refresh(assignment)
     return assignment

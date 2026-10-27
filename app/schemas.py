@@ -168,6 +168,7 @@ class AssignmentBase(BaseModel):
     school_class: str
     topic: str
     difficulty: Optional[str] = None
+    latex_code: Optional[str] = None
 
 
 class AssignmentCreate(AssignmentBase):

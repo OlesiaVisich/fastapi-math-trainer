@@ -177,7 +177,69 @@
     }
     .btn-del:hover { background: #fdecea; }
     .empty { color: var(--muted); font-size: 15px; padding: 20px 0; }
+
+    textarea#latex_code {
+      width: 100%;
+      padding: 9px 10px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      font-size: 13px;
+      font-family: "Consolas", "Courier New", monospace;
+      background: #fff;
+      resize: vertical;
+    }
+
+    /* Просмотр задания (всплывающее окно с отрендеренным LaTeX) */
+    .viewer-body { max-height: 60vh; overflow-y: auto; margin-top: 8px; }
+    .viewer-meta { font-size: 14px; color: var(--muted); margin-bottom: 10px; }
+    .viewer-latex {
+      border: 1px dashed var(--border);
+      border-radius: 8px;
+      background: #f8fafc;
+      color: #567;
+      padding: 10px 12px;
+      font-family: "Consolas", "Courier New", monospace;
+      font-size: 12.5px;
+      white-space: pre-wrap;
+      word-break: break-word;
+      margin-top: 14px;
+      max-height: 200px;
+      overflow-y: auto;
+    }
+    .viewer-latex[hidden] { display: none; }
+    .render-error { color: var(--danger); font-size: 14px; }
+    .btn-view {
+      background: transparent;
+      border: 1px solid var(--primary);
+      color: var(--primary);
+      border-radius: 6px;
+      padding: 6px 12px;
+      font-size: 13px;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+    .btn-view:hover { background: #eaf1f8; }
+    .btn-toggle-code {
+      background: transparent;
+      border: none;
+      color: var(--muted);
+      font-size: 13px;
+      cursor: pointer;
+      text-decoration: underline;
+      margin-top: 8px;
+      padding: 0;
+    }
   </style>
+  <script>
+    window.MathJax = {
+      tex: {
+        inlineMath: [['$', '$'], ['\\(', '\\)']],
+        displayMath: [['$$', '$$'], ['\\[', '\\]']]
+      },
+      svg: { fontCache: 'global' }
+    };
+  </script>
+  <script async id="MathJax-script" src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"></script>
 </head>
 <body>
   <header>
@@ -221,11 +283,29 @@
           <option value="высокая">Высокая</option>
         </select>
 
+        <label for="latex_code">LaTeX-код задания</label>
+        <textarea id="latex_code" name="latex_code" rows="8"
+          placeholder="Например: $$x^2 - 5x + 6 = 0$$&#10;Найдите корни уравнения."></textarea>
+
         <div class="modal-actions">
           <button type="submit" class="btn-submit">➕ Добавить задание</button>
           <button type="button" class="btn-secondary" onclick="closeModal()">Отмена</button>
         </div>
       </form>
+    </div>
+  </div>
+
+  <!-- Модальное окно просмотра задания -->
+  <div class="modal-overlay" id="viewer-overlay">
+    <div class="modal" style="max-width: 640px;">
+      <div class="modal-head">
+        <h2 id="viewer-title">Задание</h2>
+        <button class="modal-close" onclick="closeViewer()" title="Закрыть">×</button>
+      </div>
+      <div class="viewer-meta" id="viewer-meta"></div>
+      <div class="viewer-body" id="viewer-content"></div>
+      <button class="btn-toggle-code" id="viewer-toggle" onclick="toggleCode()" hidden>Показать исходный LaTeX-код</button>
+      <pre class="viewer-latex" id="viewer-code" hidden></pre>
     </div>
   </div>
 
@@ -268,6 +348,7 @@
       const res = await fetch('/assignments/');
       if (!res.ok) { showMessage('Ошибка загрузки заданий', false); return; }
       const items = await res.json();
+      assignmentsCache = items;
       if (!items.length) {
         listEl.innerHTML = '<div class="empty">Заданий пока нет. Нажмите «+», чтобы добавить первое.</div>';
         return;
@@ -292,15 +373,75 @@
 
     function renderAssignment(a) {
       const [label, css] = DIFF_LABELS[a.difficulty] || ['Без сложности', 'none'];
+      const viewBtn = a.latex_code
+        ? `<button class="btn-view" onclick="viewAssignment(${a.id})">👁 Просмотр</button>`
+        : '';
       return `
         <div class="assignment">
           <div>
             <span class="assignment-title">${escapeHtml(a.topic)}</span>
             <span class="badge ${css}">${label}</span>
           </div>
-          <button class="btn-del" onclick="deleteAssignment(${a.id})">Удалить</button>
+          <div style="display:flex; gap:8px;">
+            ${viewBtn}
+            <button class="btn-del" onclick="deleteAssignment(${a.id})">Удалить</button>
+          </div>
         </div>`;
     }
+
+    /* ---------- Просмотр задания с компиляцией LaTeX (MathJax) ---------- */
+    const viewerOverlay = document.getElementById('viewer-overlay');
+    let assignmentsCache = [];
+
+    async function typesetMath(el) {
+      if (window.MathJax && window.MathJax.typesetPromise) {
+        try { await MathJax.typesetPromise([el]); } catch (e) { /* не критично */ }
+      } else if (window.MathJax && MathJax.startup && MathJax.startup.promise) {
+        try { await MathJax.startup.promise.then(() => MathJax.typesetPromise([el])); } catch (e) {}
+      }
+    }
+
+    async function viewAssignment(id) {
+      if (!assignmentsCache.length) await loadAssignments();
+      const a = assignmentsCache.find((x) => x.id === id);
+      if (!a) return;
+      document.getElementById('viewer-title').textContent = a.topic;
+      document.getElementById('viewer-meta').textContent =
+        `Класс: ${a.school_class}${a.difficulty ? ' · Сложность: ' + a.difficulty : ''}`;
+      const contentEl = document.getElementById('viewer-content');
+      const codeEl = document.getElementById('viewer-code');
+      const toggleEl = document.getElementById('viewer-toggle');
+      // Исходный текст: абзацы, экранированный HTML; MathJax отрендерит $...$ и $$...$$
+      contentEl.innerHTML = '<div class="render-error">Загрузка…</div>';
+      codeEl.textContent = a.latex_code || '';
+      codeEl.hidden = true;
+      toggleEl.hidden = !a.latex_code;
+      toggleEl.textContent = 'Показать исходный LaTeX-код';
+      viewerOverlay.classList.add('open');
+      if (a.latex_code) {
+        contentEl.innerHTML = escapeHtml(a.latex_code)
+          .split(/\r?\n/).map((line) => line ? `<p>${line}</p>` : '<p>&nbsp;</p>').join('');
+        await typesetMath(contentEl);
+      } else {
+        contentEl.innerHTML = '<div class="empty">LaTeX-код не добавлен.</div>';
+      }
+    }
+
+    function closeViewer() {
+      viewerOverlay.classList.remove('open');
+    }
+    function toggleCode() {
+      const codeEl = document.getElementById('viewer-code');
+      const toggleEl = document.getElementById('viewer-toggle');
+      codeEl.hidden = !codeEl.hidden;
+      toggleEl.textContent = codeEl.hidden
+        ? 'Показать исходный LaTeX-код'
+        : 'Скрыть исходный LaTeX-код';
+    }
+    viewerOverlay.addEventListener('click', (e) => { if (e.target === viewerOverlay) closeViewer(); });
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') { closeViewer(); closeModal(); }
+    });
 
     async function deleteAssignment(id) {
       if (!confirm('Удалить задание?')) return;
