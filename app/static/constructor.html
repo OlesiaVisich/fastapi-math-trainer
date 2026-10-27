@@ -550,12 +550,11 @@
         div.className = 'sheet-item';
         div.draggable = true;
         div.dataset.index = idx;
-        const meta = [t.school_class, t.difficulty].filter(Boolean).join(' · ');
+        // На листе показываем только номер и текст задания — служебные поля
+        // (тема, класс, сложность) остаются в панели справа и не печатаются.
         div.innerHTML = `
           <div class="item-head">
             <span class="item-num">${idx + 1}.</span>
-            <span class="item-topic">${escapeHtml(t.topic)}</span>
-            ${meta ? `<span class="item-meta">${escapeHtml(meta)}</span>` : ''}
           </div>
           <div class="item-body"></div>
           <button class="item-remove" title="Убрать с листа" onclick="removeItem(${idx})">✕</button>`;
