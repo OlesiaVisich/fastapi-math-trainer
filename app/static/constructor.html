@@ -99,6 +99,42 @@
       text-align: center;
     }
     .sheet-divider { border-top: 1px solid #ccc; margin: 14px 0 18px; }
+    /* ---------- Настройки шапки работы ---------- */
+    .head-settings {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 14px 16px;
+      margin-bottom: 16px;
+      font-family: "Segoe UI", Arial, sans-serif;
+    }
+    .head-settings h3 { margin: 0 0 10px; font-size: 15px; color: var(--text); }
+    .hs-row { display: flex; gap: 10px; align-items: center; margin-bottom: 10px; flex-wrap: wrap; }
+    .hs-label { font-size: 13px; color: var(--muted); min-width: 110px; }
+    .hs-input {
+      flex: 1;
+      min-width: 200px;
+      padding: 7px 10px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      font-size: 14px;
+      font-family: inherit;
+    }
+    .hs-checks { display: flex; gap: 16px; flex-wrap: wrap; margin-bottom: 10px; }
+    .hs-check { display: flex; align-items: center; gap: 6px; font-size: 14px; cursor: pointer; user-select: none; }
+    .hs-check input { width: 16px; height: 16px; cursor: pointer; accent-color: var(--primary); }
+    .hs-hint { font-size: 12px; color: var(--muted); margin: 0; }
+    /* баллы и оценка на листе */
+    .item-head-row { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; }
+    .item-points { font-size: 13px; color: #555; white-space: nowrap; }
+    .sheet-score-row {
+      text-align: right;
+      font-size: 15px;
+      margin-top: 18px;
+      padding-top: 10px;
+      border-top: 1px solid #ddd;
+    }
+    @media print { .head-settings { display: none !important; } }
     .sheet-empty-hint {
       color: #9aa8b8;
       text-align: center;
@@ -404,11 +440,35 @@
         <button class="btn-tool primary" onclick="printSheet()">🖨 Печать / PDF</button>
         <button class="btn-tool danger" onclick="clearSheet()">Очистить лист</button>
       </div>
+      <!-- Настройки шапки работы: применяются к листу ниже -->
+      <div class="head-settings">
+        <h3>⚙️ Шапка работы</h3>
+        <div class="hs-row">
+          <span class="hs-label">Заголовок:</span>
+          <input class="hs-input" id="hs-title" placeholder="Например: Контрольная работа №2 по алгебре" />
+        </div>
+        <div class="hs-row">
+          <span class="hs-label">Подпись ученика:</span>
+          <select class="hs-input" id="hs-name-style" style="flex:0 0 auto; min-width: 260px;">
+            <option value="fam_name">Фамилия, имя: ______</option>
+            <option value="fam">Фамилия: ______</option>
+            <option value="name">Имя: ______</option>
+            <option value="fam_name_class">Фамилия, имя, класс: ______</option>
+            <option value="none">Без подписи</option>
+          </select>
+        </div>
+        <div class="hs-checks">
+          <label class="hs-check"><input type="checkbox" id="hs-points" /> Поле для баллов у каждого задания</label>
+          <label class="hs-check"><input type="checkbox" id="hs-grade" /> Итоговая оценка на листе</label>
+        </div>
+        <p class="hs-hint">Изменения сохраняются автоматически и видны на листе сразу. Панель настроек не попадает в печать/PDF.</p>
+      </div>
       <div class="sheet" id="sheet">
-        <input class="sheet-title-input" id="sheet-title" placeholder="Контрольная работа" />
-        <div class="sheet-name-row">Фамилия, имя: <input class="sheet-name-input" id="sheet-name" /></div>
+        <div class="sheet-title-input" id="sheet-title-text">Контрольная работа</div>
+        <div class="sheet-name-row" id="sheet-name-row">Фамилия, имя: <input class="sheet-name-input" id="sheet-name" /></div>
         <div class="sheet-divider"></div>
         <div id="sheet-items"></div>
+        <div class="sheet-score-row" id="sheet-score-row" style="display:none;">Оценка: __________</div>
         <div class="sheet-empty-hint" id="sheet-hint">Перетащите задания из панели справа на этот лист</div>
       </div>
     </div>
@@ -447,8 +507,14 @@
     const sheetEl = document.getElementById('sheet');
     const itemsEl = document.getElementById('sheet-items');
     const hintEl = document.getElementById('sheet-hint');
-    const titleInput = document.getElementById('sheet-title');
-    const nameInput = document.getElementById('sheet-name');
+    const titleInput = document.getElementById('hs-title');
+    const nameStyleSel = document.getElementById('hs-name-style');
+    const pointsChk = document.getElementById('hs-points');
+    const gradeChk = document.getElementById('hs-grade');
+    const titleTextEl = document.getElementById('sheet-title-text');
+    const nameRowEl = document.getElementById('sheet-name-row');
+    const scoreRowEl = document.getElementById('sheet-score-row');
+    let nameInput = document.getElementById('sheet-name');
     const taskListEl = document.getElementById('task-list');
 
     let allTasks = [];
@@ -493,12 +559,42 @@
     }
 
     /* ---------- Сохранение/загрузка листа ---------- */
+    const NAME_LABELS = {
+      fam_name: 'Фамилия, имя:',
+      fam: 'Фамилия:',
+      name: 'Имя:',
+      fam_name_class: 'Фамилия, имя, класс:',
+      none: '',
+    };
+
+    function applyHeaderSettings() {
+      titleTextEl.textContent = titleInput.value.trim() || 'Контрольная работа';
+      const style = nameStyleSel.value;
+      if (style === 'none') {
+        nameRowEl.style.display = 'none';
+      } else {
+        nameRowEl.style.display = '';
+        nameRowEl.innerHTML = `${NAME_LABELS[style]} <input class="sheet-name-input" id="sheet-name" />`;
+        // переподключаем ссылку на новый input и возвращаем введённое значение
+        nameInput = document.getElementById('sheet-name');
+        nameInput.value = savedName || '';
+        nameInput.addEventListener('input', saveSheet);
+      }
+      scoreRowEl.style.display = gradeChk.checked ? '' : 'none';
+    }
+
+    let savedName = '';
+
     function saveSheet() {
       localStorage.setItem(STORAGE_KEY, JSON.stringify({
         items: sheetItems,
         title: titleInput.value,
-        name: nameInput.value,
+        name: nameInput ? nameInput.value : savedName,
+        name_style: nameStyleSel.value,
+        points: pointsChk.checked,
+        grade: gradeChk.checked,
       }));
+      savedName = nameInput ? nameInput.value : savedName;
     }
     function loadSavedSheet() {
       try {
@@ -507,8 +603,12 @@
         const data = JSON.parse(raw);
         sheetItems = Array.isArray(data.items) ? data.items : [];
         titleInput.value = data.title || '';
-        nameInput.value = data.name || '';
+        savedName = data.name || '';
+        if (data.name_style && NAME_LABELS[data.name_style] !== undefined) nameStyleSel.value = data.name_style;
+        pointsChk.checked = !!data.points;
+        gradeChk.checked = !!data.grade;
       } catch (e) { /* ignore */ }
+      applyHeaderSettings();
     }
 
     /* ---------- Рендер панели заданий ---------- */
@@ -764,9 +864,15 @@
         div.dataset.index = idx;
         // На листе показываем только номер и текст задания — служебные поля
         // (тема, класс, сложность) остаются в панели справа и не печатаются.
+        // При включённом поле баллов у каждого задания справа от номера — «(__ б)».
+        const pointsHtml = pointsChk.checked
+          ? '<span class="item-points">(<u>&nbsp;&nbsp;&nbsp;</u> б.)</span>' : '';
         div.innerHTML = `
           <div class="item-head">
-            <span class="item-num">${idx + 1}.</span>
+            <div class="item-head-row">
+              <span class="item-num">${idx + 1}.</span>
+              ${pointsHtml}
+            </div>
           </div>
           <div class="item-body"></div>
           <button class="item-remove" title="Убрать с листа" onclick="removeItem(${idx})">✕</button>`;
@@ -1005,8 +1111,10 @@
     ['f-class', 'f-diff', 'f-topic'].forEach(id =>
       document.getElementById(id).addEventListener('change', renderTaskList));
     document.getElementById('f-search').addEventListener('input', renderTaskList);
-    titleInput.addEventListener('input', saveSheet);
-    nameInput.addEventListener('input', saveSheet);
+    titleInput.addEventListener('input', () => { applyHeaderSettings(); saveSheet(); });
+    nameStyleSel.addEventListener('change', () => { applyHeaderSettings(); saveSheet(); });
+    pointsChk.addEventListener('change', () => { saveSheet(); renderSheet(); });
+    gradeChk.addEventListener('change', () => { applyHeaderSettings(); saveSheet(); });
 
     /* ---------- Загрузка данных ---------- */
     async function init() {
