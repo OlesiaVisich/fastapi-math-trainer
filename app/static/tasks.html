@@ -381,6 +381,12 @@
       const mode = formEl.querySelector('input[name="source_mode"]:checked').value;
       document.getElementById('source-text').hidden = mode !== 'text';
       document.getElementById('source-file').hidden = mode !== 'file';
+      // Снимаем required с неактивного источника, чтобы браузер не блокировал
+      // отправку формы («нет новой версии / ошибка при добавлении»)
+      const ta = document.getElementById('latex_code');
+      const fi = document.getElementById('file');
+      if (ta) ta.required = false;
+      if (fi) fi.required = false;
       if (mode === 'file') {
         formEl.querySelectorAll('[data-from-file]').forEach((el) => el.remove());
       } else {

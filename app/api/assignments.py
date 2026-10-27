@@ -1,7 +1,7 @@
 """Эндпоинты раздела «Задания»: создание, список, удаление, группы аналогов."""
 from typing import List, Optional
 
-from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile
 from sqlalchemy.orm import Session, joinedload
 
 from app.database import SessionLocal
@@ -64,11 +64,11 @@ def _split_variants(raw: str) -> List[str]:
 
 
 @router.post("/", response_model=List[AssignmentSchema])
-def create_assignments(
+async def create_assignments(
+    request: Request,
     school_class: str = Form(...),
     topic: str = Form(...),
     difficulty: Optional[str] = Form(None),
-    latex_code: Optional[str] = Form(None),
     group_mode: Optional[str] = Form("none"),
     existing_group_id: Optional[int] = Form(None),
     new_group_name: Optional[str] = Form(None),
@@ -80,26 +80,40 @@ def create_assignments(
     Аналогичные задания передаются в поле latex_code (или в txt-файле):
     каждый блок текста, отделённый пустой строкой, становится отдельным
     заданием. group_mode: none | new (название новой группы) | existing (ID).
+
+    Поле latex_code читается напрямую из формы (без строгой типизации),
+    чтобы некорректный/пустой ввод не приводил к ошибке 422 без сообщения.
     """
     if not school_class.strip():
         raise HTTPException(status_code=400, detail="Класс не может быть пустым")
     if not topic.strip():
         raise HTTPException(status_code=400, detail="Тема не может быть пустой")
 
-    # Текст вариантов: из файла (если загружен) или из поля latex_code
+    # Текст вариантов: из поля latex_code (браузер читает выбранный файл и
+    # отправляет его содержимое текстом) либо из параметра file (например,
+    # при отправке через Swagger UI / напрямую).
+    form = await request.form()
     raw_text = ""
-    if file is not None and file.filename:
+    latex_field = form.get("latex_code")
+    if isinstance(latex_field, str):
+        raw_text = latex_field
+    elif latex_field is not None and hasattr(latex_field, "read"):
+        # Браузер мог отправить textarea как файл — читаем его содержимое
+        try:
+            content = await latex_field.read()
+            raw_text = content.decode("utf-8-sig", errors="replace")
+        except Exception:
+            raw_text = ""
+    if (not raw_text.strip()) and file is not None and getattr(file, "filename", None):
         content = file.file.read()
         try:
             raw_text = content.decode("utf-8-sig")
         except UnicodeDecodeError:
             raw_text = content.decode("cp1251", errors="replace")
-    elif latex_code:
-        raw_text = latex_code
 
     variants = _split_variants(raw_text)
     if not variants:
-        raise HTTPException(status_code=400, detail="Добавьте LaTeX-код или файл с вариантами")
+        raise HTTPException(status_code=400, detail="Добавьте LaTeX-код заданий (пустое поле не принимается)")
 
     # Определение группы аналогов
     group: Optional[AssignmentGroup] = None
