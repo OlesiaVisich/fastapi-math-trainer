@@ -40,3 +40,9 @@ def todos_page():
 def tasks_page():
     """Страница «Задания» (задания для учеников)."""
     return FileResponse(os.path.join(STATIC_DIR, "tasks.html"))
+
+
+@app.get("/constructor-page", include_in_schema=False)
+def constructor_page():
+    """Страница «Конструктор работ»."""
+    return FileResponse(os.path.join(STATIC_DIR, "constructor.html"))

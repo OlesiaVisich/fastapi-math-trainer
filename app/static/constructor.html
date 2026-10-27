@@ -1,0 +1,548 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Кабинет учителя — Конструктор работ</title>
+  <style>
+    :root {
+      --primary: #3b6ea5;
+      --primary-dark: #2f5a88;
+      --bg: #f4f6f9;
+      --card: #ffffff;
+      --text: #22303e;
+      --muted: #6b7a8c;
+      --border: #dde4ec;
+      --danger: #c0392b;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: "Segoe UI", Arial, sans-serif; background: var(--bg); color: var(--text); }
+    header {
+      background: var(--primary);
+      color: #fff;
+      padding: 16px 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    header h1 { font-size: 20px; font-weight: 600; }
+    nav a { color: #fff; text-decoration: none; margin-left: 18px; font-size: 15px; opacity: .85; }
+    nav a.active, nav a:hover { opacity: 1; font-weight: 600; }
+
+    .layout {
+      display: grid;
+      grid-template-columns: minmax(420px, 1fr) minmax(320px, 460px);
+      gap: 20px;
+      max-width: 1400px;
+      margin: 20px auto;
+      padding: 0 16px;
+      align-items: start;
+    }
+    @media (max-width: 1000px) { .layout { grid-template-columns: 1fr; } }
+
+    /* ---------- Лист А4 ---------- */
+    .sheet-wrap { position: sticky; top: 16px; }
+    .sheet-toolbar { display: flex; gap: 10px; margin-bottom: 10px; flex-wrap: wrap; }
+    .btn-tool {
+      border: 1px solid var(--border);
+      background: var(--card);
+      color: var(--text);
+      border-radius: 6px;
+      padding: 7px 14px;
+      font-size: 13px;
+      cursor: pointer;
+    }
+    .btn-tool:hover { background: #eef2f7; }
+    .btn-tool.primary { background: var(--primary); border-color: var(--primary); color: #fff; }
+    .btn-tool.primary:hover { background: var(--primary-dark); }
+    .btn-tool.danger { color: var(--danger); }
+    .btn-tool.danger:hover { background: #fdecea; }
+
+    .sheet {
+      background: #fff;
+      width: 100%;
+      max-width: 794px; /* ~A4 при 96dpi */
+      min-height: 1000px;
+      margin: 0 auto;
+      padding: 56px 64px;
+      box-shadow: 0 4px 18px rgba(0, 0, 0, .12);
+      border: 2px dashed transparent;
+      transition: border-color .15s ease, background .15s ease;
+      font-family: Georgia, "Times New Roman", serif;
+    }
+    .sheet.drag-over { border-color: var(--primary); background: #f2f8ff; }
+    .sheet-title-input {
+      width: 100%;
+      border: none;
+      outline: none;
+      font-family: inherit;
+      font-size: 20px;
+      font-weight: 700;
+      text-align: center;
+      padding: 4px 0;
+      color: var(--text);
+    }
+    .sheet-name-row {
+      text-align: center;
+      font-size: 15px;
+      margin: 10px 0 6px;
+      color: #333;
+    }
+    .sheet-name-input {
+      border: none;
+      border-bottom: 1px solid #999;
+      outline: none;
+      font-family: inherit;
+      font-size: 15px;
+      min-width: 220px;
+      padding: 2px 6px;
+      text-align: center;
+    }
+    .sheet-divider { border-top: 1px solid #ccc; margin: 14px 0 18px; }
+    .sheet-empty-hint {
+      color: #9aa8b8;
+      text-align: center;
+      margin-top: 120px;
+      font-size: 15px;
+      font-family: "Segoe UI", Arial, sans-serif;
+    }
+    .sheet-item {
+      position: relative;
+      font-size: 15px;
+      line-height: 1.5;
+      padding: 10px 40px 10px 4px;
+      border-bottom: 1px dotted #e2e6ec;
+      cursor: grab;
+    }
+    .sheet-item:last-child { border-bottom: none; }
+    .sheet-item.dragging { opacity: .45; }
+    .sheet-item.drop-before { box-shadow: 0 -3px 0 0 var(--primary); }
+    .sheet-item.drop-after { box-shadow: 0 3px 0 0 var(--primary); }
+    .item-head { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; margin-bottom: 4px; }
+    .item-num { font-weight: 700; }
+    .item-topic { font-weight: 700; }
+    .item-meta { font-size: 12px; color: var(--muted); font-family: "Segoe UI", Arial, sans-serif; }
+    .item-remove {
+      position: absolute;
+      right: 0;
+      top: 8px;
+      background: transparent;
+      border: none;
+      color: var(--muted);
+      font-size: 16px;
+      cursor: pointer;
+      font-family: "Segoe UI", Arial, sans-serif;
+    }
+    .item-remove:hover { color: var(--danger); }
+    .item-body p { margin: 2px 0; white-space: pre-wrap; word-break: break-word; }
+
+    /* ---------- Панель заданий ---------- */
+    .panel {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 16px;
+    }
+    .panel h2 { font-size: 18px; margin-bottom: 12px; }
+    .filters { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 14px; }
+    .filters label { font-size: 12px; color: var(--muted); display: block; margin-bottom: 3px; }
+    .filters select, .filters input[type="text"] {
+      width: 100%;
+      padding: 7px 8px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      font-size: 13px;
+      background: #fff;
+    }
+    .task-list { max-height: 72vh; overflow-y: auto; }
+    .task-group-header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin: 14px 0 8px;
+      padding-bottom: 4px;
+      border-bottom: 2px solid var(--primary);
+    }
+    .task-group-header h3 { font-size: 15px; color: var(--primary-dark); }
+    .group-count {
+      background: var(--primary);
+      color: #fff;
+      font-size: 11px;
+      border-radius: 10px;
+      padding: 1px 8px;
+    }
+    .task-card {
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 10px 12px;
+      margin-bottom: 8px;
+      background: #fbfcfe;
+      cursor: grab;
+      transition: box-shadow .12s ease, transform .12s ease;
+    }
+    .task-card:hover { box-shadow: 0 3px 10px rgba(47, 90, 136, .18); transform: translateY(-1px); }
+    .task-card.dragging { opacity: .5; }
+    .task-card.on-sheet { opacity: .55; cursor: default; }
+    .task-title { font-size: 14px; font-weight: 600; }
+    .badge {
+      display: inline-block;
+      font-size: 11px;
+      border-radius: 10px;
+      padding: 1px 8px;
+      margin-left: 6px;
+      color: #fff;
+      vertical-align: middle;
+    }
+    .badge.easy { background: #2fa36b; }
+    .badge.medium { background: #e6a23c; }
+    .badge.hard { background: #c0392b; }
+    .badge.none { background: #9aa8b8; }
+    .task-hint { font-size: 12px; color: var(--muted); margin-top: 4px; }
+    .empty { color: var(--muted); font-size: 14px; padding: 16px 0; }
+
+    /* ---------- Печать ---------- */
+    @media print {
+      body { background: #fff; }
+      header, .panel, .sheet-toolbar, .item-remove, .sheet-empty-hint { display: none !important; }
+      .layout { display: block; margin: 0; padding: 0; max-width: none; }
+      .sheet-wrap { position: static; }
+      .sheet { box-shadow: none; border: none; max-width: none; padding: 0; min-height: auto; }
+      .sheet-title-input, .sheet-name-input { border: none; }
+    }
+  </style>
+  <script>
+    window.MathJax = {
+      tex: {
+        inlineMath: [['$', '$'], ['\\(', '\\)']],
+        displayMath: [['$$', '$$'], ['\\[', '\\]']]
+      },
+      svg: { fontCache: 'global' }
+    };
+  </script>
+  <script async id="MathJax-script" src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"></script>
+</head>
+<body>
+  <header>
+    <h1>📚 Кабинет учителя</h1>
+    <nav>
+      <a href="/">Главная</a>
+      <a href="/lessons-page">Мои уроки</a>
+      <a href="/todos-page">Список дел</a>
+      <a href="/tasks-page">Задания</a>
+      <a href="/constructor-page" class="active">Конструктор работ</a>
+    </nav>
+  </header>
+
+  <div class="layout">
+    <!-- Лист А4 -->
+    <div class="sheet-wrap">
+      <div class="sheet-toolbar">
+        <button class="btn-tool primary" onclick="printSheet()">🖨 Печать / PDF</button>
+        <button class="btn-tool danger" onclick="clearSheet()">Очистить лист</button>
+      </div>
+      <div class="sheet" id="sheet">
+        <input class="sheet-title-input" id="sheet-title" placeholder="Контрольная работа" />
+        <div class="sheet-name-row">Фамилия, имя: <input class="sheet-name-input" id="sheet-name" /></div>
+        <div class="sheet-divider"></div>
+        <div id="sheet-items"></div>
+        <div class="sheet-empty-hint" id="sheet-hint">Перетащите задания из панели справа на этот лист</div>
+      </div>
+    </div>
+
+    <!-- Панель заданий -->
+    <aside class="panel">
+      <h2>Задания</h2>
+      <div class="filters">
+        <div>
+          <label for="f-class">Класс</label>
+          <select id="f-class"><option value="">Все классы</option></select>
+        </div>
+        <div>
+          <label for="f-diff">Сложность</label>
+          <select id="f-diff">
+            <option value="">Любая</option>
+            <option value="простая">Простая</option>
+            <option value="средняя">Средняя</option>
+            <option value="высокая">Высокая</option>
+          </select>
+        </div>
+        <div style="grid-column: 1 / -1;">
+          <label for="f-topic">Тема</label>
+          <select id="f-topic"><option value="">Все темы</option></select>
+        </div>
+        <div style="grid-column: 1 / -1;">
+          <label for="f-search">Поиск по названию</label>
+          <input type="text" id="f-search" placeholder="Например: уравнения" />
+        </div>
+      </div>
+      <div class="task-list" id="task-list"><div class="empty">Загрузка…</div></div>
+    </aside>
+  </div>
+
+  <script>
+    const sheetEl = document.getElementById('sheet');
+    const itemsEl = document.getElementById('sheet-items');
+    const hintEl = document.getElementById('sheet-hint');
+    const titleInput = document.getElementById('sheet-title');
+    const nameInput = document.getElementById('sheet-name');
+    const taskListEl = document.getElementById('task-list');
+
+    let allTasks = [];
+    let sheetItems = []; // [{task_id}, ...]
+    const STORAGE_KEY = 'workshop_sheet_v1';
+
+    function escapeHtml(s) {
+      const div = document.createElement('div');
+      div.textContent = s == null ? '' : String(s);
+      return div.innerHTML;
+    }
+
+    /* ---------- Сохранение/загрузка листа ---------- */
+    function saveSheet() {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({
+        items: sheetItems,
+        title: titleInput.value,
+        name: nameInput.value,
+      }));
+    }
+    function loadSavedSheet() {
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if (!raw) return;
+        const data = JSON.parse(raw);
+        sheetItems = Array.isArray(data.items) ? data.items : [];
+        titleInput.value = data.title || '';
+        nameInput.value = data.name || '';
+      } catch (e) { /* ignore */ }
+    }
+
+    /* ---------- Рендер панели заданий ---------- */
+    const DIFF_LABELS = {
+      'простая': ['Простая', 'easy'],
+      'средняя': ['Средняя', 'medium'],
+      'высокая': ['Высокая', 'hard'],
+    };
+
+    function fillFilters() {
+      const classes = [...new Set(allTasks.map(t => t.school_class).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'ru'));
+      const topics = [...new Set(allTasks.map(t => t.topic).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'ru'));
+      const fClass = document.getElementById('f-class');
+      const fTopic = document.getElementById('f-topic');
+      const curC = fClass.value, curT = fTopic.value;
+      fClass.innerHTML = '<option value="">Все классы</option>' + classes.map(c => `<option value="${escapeHtml(c)}">${escapeHtml(c)}</option>`).join('');
+      fTopic.innerHTML = '<option value="">Все темы</option>' + topics.map(t => `<option value="${escapeHtml(t)}">${escapeHtml(t)}</option>`).join('');
+      fClass.value = curC; fTopic.value = curT;
+    }
+
+    function getFilteredTasks() {
+      const cls = document.getElementById('f-class').value;
+      const diff = document.getElementById('f-diff').value;
+      const topic = document.getElementById('f-topic').value;
+      const search = document.getElementById('f-search').value.trim().toLowerCase();
+      return allTasks.filter(t =>
+        (!cls || t.school_class === cls) &&
+        (!diff || t.difficulty === diff) &&
+        (!topic || t.topic === topic) &&
+        (!search || (t.topic || '').toLowerCase().includes(search))
+      );
+    }
+
+    function renderTaskList() {
+      const tasks = getFilteredTasks();
+      const onSheetIds = new Set(sheetItems.map(i => i.task_id));
+      if (!tasks.length) {
+        taskListEl.innerHTML = '<div class="empty">Заданий не найдено. Добавьте их в разделе «Задания».</div>';
+        return;
+      }
+      const byClass = {};
+      tasks.forEach(t => {
+        const cls = t.school_class || 'Без класса';
+        (byClass[cls] = byClass[cls] || []).push(t);
+      });
+      const classes = Object.keys(byClass).sort((a, b) => a.localeCompare(b, 'ru'));
+      taskListEl.innerHTML = classes.map(cls => `
+        <div class="task-group-header">
+          <h3>${cls === 'Без класса' ? 'Без класса' : 'Класс: ' + escapeHtml(cls)}</h3>
+          <span class="group-count">${byClass[cls].length}</span>
+        </div>
+        ${byClass[cls].map(t => {
+          const [label, css] = DIFF_LABELS[t.difficulty] || ['Без сложности', 'none'];
+          const already = onSheetIds.has(t.id);
+          return `
+            <div class="task-card ${already ? 'on-sheet' : ''}" draggable="${!already}" data-id="${t.id}">
+              <div class="task-title">${escapeHtml(t.topic)} <span class="badge ${css}">${label}</span></div>
+              <div class="task-hint">${already ? '✔ уже на листе' : '⠿ перетащите на лист'}</div>
+            </div>`;
+        }).join('')}
+      `).join('');
+
+      taskListEl.querySelectorAll('.task-card').forEach(card => {
+        card.addEventListener('dragstart', (e) => {
+          if (card.classList.contains('on-sheet')) { e.preventDefault(); return; }
+          e.dataTransfer.setData('text/plain', JSON.stringify({ source: 'panel', id: Number(card.dataset.id) }));
+          e.dataTransfer.effectAllowed = 'copy';
+          card.classList.add('dragging');
+        });
+        card.addEventListener('dragend', () => card.classList.remove('dragging'));
+      });
+    }
+
+    /* ---------- Рендер листа ---------- */
+    async function typeset(el) {
+      if (window.MathJax && window.MathJax.typesetPromise) {
+        try { await MathJax.typesetPromise([el]); } catch (e) {}
+      } else if (window.MathJax && MathJax.startup && MathJax.startup.promise) {
+        try { await MathJax.startup.promise.then(() => MathJax.typesetPromise([el])); } catch (e) {}
+      }
+    }
+
+    async function renderSheet() {
+      hintEl.style.display = sheetItems.length ? 'none' : 'block';
+      itemsEl.innerHTML = '';
+      sheetItems.forEach((item, idx) => {
+        const t = allTasks.find(x => x.id === item.task_id);
+        if (!t) return;
+        const div = document.createElement('div');
+        div.className = 'sheet-item';
+        div.draggable = true;
+        div.dataset.index = idx;
+        const meta = [t.school_class, t.difficulty].filter(Boolean).join(' · ');
+        div.innerHTML = `
+          <div class="item-head">
+            <span class="item-num">${idx + 1}.</span>
+            <span class="item-topic">${escapeHtml(t.topic)}</span>
+            ${meta ? `<span class="item-meta">${escapeHtml(meta)}</span>` : ''}
+          </div>
+          <div class="item-body"></div>
+          <button class="item-remove" title="Убрать с листа" onclick="removeItem(${idx})">✕</button>`;
+        const body = div.querySelector('.item-body');
+        if (t.latex_code) {
+          body.innerHTML = escapeHtml(t.latex_code)
+            .split(/\r?\n/).map(line => line ? `<p>${line}</p>` : '<p>&nbsp;</p>').join('');
+          typeset(body);
+        } else {
+          body.innerHTML = '<p style="color:#9aa8b8;">Текст задания не добавлен (LaTeX-код пуст).</p>';
+        }
+        div.addEventListener('dragstart', (e) => {
+          e.dataTransfer.setData('text/plain', JSON.stringify({ source: 'sheet', index: idx }));
+          e.dataTransfer.effectAllowed = 'move';
+          div.classList.add('dragging');
+        });
+        div.addEventListener('dragend', () => {
+          div.classList.remove('dragging');
+          clearDropMarks();
+        });
+        itemsEl.appendChild(div);
+      });
+      renderTaskList();
+    }
+
+    function clearDropMarks() {
+      itemsEl.querySelectorAll('.drop-before, .drop-after').forEach(el => {
+        el.classList.remove('drop-before');
+        el.classList.remove('drop-after');
+      });
+    }
+
+    function addItem(taskId, beforeIndex) {
+      if (sheetItems.some(i => i.task_id === taskId)) return;
+      const item = { task_id: taskId };
+      if (beforeIndex == null || beforeIndex < 0 || beforeIndex >= sheetItems.length) {
+        sheetItems.push(item);
+      } else {
+        sheetItems.splice(beforeIndex, 0, item);
+      }
+      saveSheet();
+      renderSheet();
+    }
+
+    function removeItem(idx) {
+      sheetItems.splice(idx, 1);
+      saveSheet();
+      renderSheet();
+    }
+
+    function clearSheet() {
+      if (!sheetItems.length) return;
+      if (!confirm('Убрать все задания с листа?')) return;
+      sheetItems = [];
+      saveSheet();
+      renderSheet();
+    }
+
+    function printSheet() { window.print(); }
+
+    /* ---------- Drag & drop на лист ---------- */
+    sheetEl.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'copy';
+      sheetEl.classList.add('drag-over');
+      clearDropMarks();
+      const target = e.target.closest('.sheet-item');
+      if (target) {
+        const rect = target.getBoundingClientRect();
+        const next = e.clientY >= rect.top + rect.height / 2 ? target.nextElementSibling : target;
+        if (next && next.classList.contains('sheet-item')) next.classList.add('drop-before');
+        else if (itemsEl.lastElementChild) itemsEl.lastElementChild.classList.add('drop-after');
+      }
+    });
+    sheetEl.addEventListener('dragleave', (e) => {
+      if (!sheetEl.contains(e.relatedTarget)) {
+        sheetEl.classList.remove('drag-over');
+        clearDropMarks();
+      }
+    });
+    sheetEl.addEventListener('drop', (e) => {
+      e.preventDefault();
+      sheetEl.classList.remove('drag-over');
+      let payload;
+      try { payload = JSON.parse(e.dataTransfer.getData('text/plain')); } catch (err) { return; }
+      const markedBefore = itemsEl.querySelector('.drop-before');
+      const markedAfter = itemsEl.querySelector('.drop-after');
+      let beforeIndex = null;
+      if (markedBefore) beforeIndex = Number(markedBefore.dataset.index);
+      else if (markedAfter) beforeIndex = Number(markedAfter.dataset.index) + 1;
+      clearDropMarks();
+
+      if (payload.source === 'panel') {
+        addItem(payload.id, beforeIndex);
+      } else if (payload.source === 'sheet') {
+        const from = payload.index;
+        const moved = sheetItems.splice(from, 1)[0];
+        let to = beforeIndex == null ? sheetItems.length : beforeIndex;
+        if (from < to) to -= 1;
+        sheetItems.splice(Math.max(0, Math.min(to, sheetItems.length)), 0, moved);
+        saveSheet();
+        renderSheet();
+      }
+    });
+
+    /* ---------- Фильтры и поля листа ---------- */
+    ['f-class', 'f-diff', 'f-topic'].forEach(id =>
+      document.getElementById(id).addEventListener('change', renderTaskList));
+    document.getElementById('f-search').addEventListener('input', renderTaskList);
+    titleInput.addEventListener('input', saveSheet);
+    nameInput.addEventListener('input', saveSheet);
+
+    /* ---------- Загрузка данных ---------- */
+    async function init() {
+      loadSavedSheet();
+      try {
+        const res = await fetch('/assignments/');
+        if (!res.ok) throw new Error();
+        allTasks = await res.json();
+      } catch (e) {
+        taskListEl.innerHTML = '<div class="empty">Не удалось загрузить задания.</div>';
+        return;
+      }
+      fillFilters();
+      // убираем с листа ссылки на удалённые задания
+      const ids = new Set(allTasks.map(t => t.id));
+      sheetItems = sheetItems.filter(i => ids.has(i.task_id));
+      renderSheet();
+    }
+
+    init();
+  </script>
+</body>
+</html>

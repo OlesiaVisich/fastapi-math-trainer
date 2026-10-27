@@ -64,17 +64,24 @@ def create_assignment(
 @router.get("/", response_model=List[AssignmentSchema])
 def list_assignments(
     school_class: Optional[str] = None,
+    topic: Optional[str] = None,
+    difficulty: Optional[str] = None,
     skip: int = 0,
     limit: int = 500,
     db: Session = Depends(get_db),
 ):
     """Получает список заданий (раздел «Задания»), новые сверху.
 
-    Параметр school_class фильтрует задания по классу.
+    Параметры school_class, topic и difficulty фильтруют задания;
+    используются в том числе в разделе «Конструктор работ».
     """
     query = db.query(Assignment)
     if school_class:
         query = query.filter(Assignment.school_class == school_class)
+    if topic:
+        query = query.filter(Assignment.topic == topic)
+    if difficulty:
+        query = query.filter(Assignment.difficulty == difficulty.strip().lower())
     return query.order_by(Assignment.id.desc()).offset(skip).limit(limit).all()
 
 
