@@ -278,8 +278,8 @@
         <button class="modal-close" onclick="closeModal()" title="Закрыть">×</button>
       </div>
       <form id="assignment-form">
-        <label for="school_class">Класс *</label>
-        <input type="text" id="school_class" name="school_class" required placeholder="Например: 9А">
+        <label for="school_class">Параллель (класс) *</label>
+        <input type="text" id="school_class" name="school_class" required placeholder="Например: 9 или 9А">
 
         <label for="topic">Тема *</label>
         <input type="text" id="topic" name="topic" required placeholder="Например: Квадратные уравнения">
@@ -429,17 +429,26 @@
         listEl.innerHTML = '<div class="empty">Заданий пока нет. Нажмите «+», чтобы добавить первое.</div>';
         return;
       }
-      // Группировка по классам
+      // Группировка по параллелям: «9А», «9В» -> общий раздел «9 класс»
+      const parallelOf = (v) => {
+        if (!v) return '';
+        const m = String(v).trim().match(/^\d+/);
+        return m ? m[0] : String(v).trim();
+      };
       const byClass = {};
       items.forEach((a) => {
-        const cls = a.school_class || 'Без класса';
+        const cls = parallelOf(a.school_class) || 'Без класса';
         (byClass[cls] = byClass[cls] || []).push(a);
       });
-      const classes = Object.keys(byClass).sort((a, b) => a.localeCompare(b, 'ru'));
+      const classes = Object.keys(byClass).sort((a, b) => {
+        const na = parseInt(a, 10), nb = parseInt(b, 10);
+        if (!isNaN(na) && !isNaN(nb)) return na - nb;
+        return a.localeCompare(b, 'ru');
+      });
       listEl.innerHTML = classes.map((cls) => `
         <section class="class-section">
           <div class="class-header">
-            <h3>${escapeHtml(cls)}</h3>
+            <h3>${cls === 'Без класса' ? 'Без класса' : escapeHtml(cls) + ' класс'}</h3>
             <span class="class-count">${byClass[cls].length}</span>
           </div>
           ${byClass[cls].map(renderAssignment).join('')}

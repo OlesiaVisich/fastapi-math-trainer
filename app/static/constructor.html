@@ -263,6 +263,51 @@
       cursor: grab;
       transition: box-shadow .12s ease, transform .12s ease;
     }
+
+    /* ---------- Стопка аналогов (карточки) ---------- */
+    .task-stack { margin-bottom: 14px; }
+    .stack-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 6px;
+      font-family: "Segoe UI", Arial, sans-serif;
+    }
+    .stack-label { font-size: 12.5px; font-weight: 600; color: #6d28d9; }
+    .stack-counter { font-size: 11.5px; color: var(--muted); white-space: nowrap; }
+    .stack-cards { position: relative; }
+    .stack-cards .stack-shadow {
+      position: absolute;
+      left: 6px; right: 6px; top: 6px; bottom: -3px;
+      background: #eef2f7;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      z-index: 0;
+    }
+    .stack-cards .stack-shadow.second { left: 12px; right: 12px; top: 10px; bottom: -6px; background: #f5f8fb; }
+    .stack-cards .stack-top { position: relative; z-index: 1; }
+    .stack-cards .stack-top .task-card { margin-bottom: 0; box-shadow: 0 2px 6px rgba(15, 30, 60, .08); }
+    .stack-nav {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 6px;
+      margin-top: 6px;
+    }
+    .stack-btn {
+      border: 1px solid var(--border);
+      background: #fff;
+      border-radius: 6px;
+      padding: 3px 10px;
+      font-size: 13px;
+      cursor: pointer;
+      font-family: "Segoe UI", Arial, sans-serif;
+      color: #333;
+    }
+    .stack-btn:hover { background: #eef4ff; border-color: var(--primary); }
+    .stack-btn.prev, .stack-btn.next { font-size: 16px; padding: 1px 12px; }
+    @media print { .task-stack .stack-nav, .stack-head { display: none !important; } }
     .task-card:hover { box-shadow: 0 3px 10px rgba(47, 90, 136, .18); transform: translateY(-1px); }
     .task-card.dragging { opacity: .5; }
     .task-card.on-sheet { opacity: .75; cursor: grab; }
@@ -473,13 +518,22 @@
       'высокая': ['Высокая', 'hard'],
     };
 
+    // Класс = параллель: «9А» и «9 В» -> «9». Задания одной параллели
+    // не разделяются по буквам класса.
+    function parallelOf(schoolClass) {
+      if (!schoolClass) return '';
+      const m = String(schoolClass).trim().match(/^\d+/);
+      return m ? m[0] : String(schoolClass).trim();
+    }
+
     function fillFilters() {
-      const classes = [...new Set(allTasks.map(t => t.school_class).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'ru'));
+      const classes = [...new Set(allTasks.map(t => parallelOf(t.school_class)).filter(Boolean))]
+        .sort((a, b) => Number(a) - Number(b));
       const topics = [...new Set(allTasks.map(t => t.topic).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'ru'));
       const fClass = document.getElementById('f-class');
       const fTopic = document.getElementById('f-topic');
       const curC = fClass.value, curT = fTopic.value;
-      fClass.innerHTML = '<option value="">Все классы</option>' + classes.map(c => `<option value="${escapeHtml(c)}">${escapeHtml(c)}</option>`).join('');
+      fClass.innerHTML = '<option value="">Все параллели</option>' + classes.map(c => `<option value="${escapeHtml(c)}">${escapeHtml(c)} класс</option>`).join('');
       fTopic.innerHTML = '<option value="">Все темы</option>' + topics.map(t => `<option value="${escapeHtml(t)}">${escapeHtml(t)}</option>`).join('');
       fClass.value = curC; fTopic.value = curT;
     }
@@ -490,7 +544,7 @@
       const topic = document.getElementById('f-topic').value;
       const search = document.getElementById('f-search').value.trim().toLowerCase();
       return allTasks.filter(t =>
-        (!cls || t.school_class === cls) &&
+        (!cls || parallelOf(t.school_class) === cls) &&
         (!diff || t.difficulty === diff) &&
         (!topic || t.topic === topic) &&
         (!search || (t.topic || '').toLowerCase().includes(search))
@@ -504,37 +558,115 @@
         taskListEl.innerHTML = '<div class="empty">Заданий не найдено. Добавьте их в разделе «Задания».</div>';
         return;
       }
+      // Группировка по параллелям (9А/9В -> «9 класс»); внутри параллели
+      // аналоги показываются одной «стопкой карточек».
       const byClass = {};
       tasks.forEach(t => {
-        const cls = t.school_class || 'Без класса';
+        const cls = parallelOf(t.school_class) || 'Без класса';
         (byClass[cls] = byClass[cls] || []).push(t);
       });
-      const classes = Object.keys(byClass).sort((a, b) => a.localeCompare(b, 'ru'));
+      const classes = Object.keys(byClass).sort((a, b) => {
+        const na = parseInt(a, 10), nb = parseInt(b, 10);
+        if (!isNaN(na) && !isNaN(nb)) return na - nb;
+        return a.localeCompare(b, 'ru');
+      });
       taskListEl.innerHTML = classes.map(cls => `
         <div class="task-group-header">
-          <h3>${cls === 'Без класса' ? 'Без класса' : 'Класс: ' + escapeHtml(cls)}</h3>
+          <h3>${cls === 'Без класса' ? 'Без класса' : escapeHtml(cls) + ' класс'}</h3>
           <span class="group-count">${byClass[cls].length}</span>
         </div>
-        ${byClass[cls].map(t => {
-          const [label, css] = DIFF_LABELS[t.difficulty] || ['Без сложности', 'none'];
-          const already = onSheetIds.has(t.id);
-          const bodyHtml = t.latex_code
-            ? escapeHtml(t.latex_code)
-                .split(/\r?\n/).map(line => line ? `<p>${line}</p>` : '<p>&nbsp;</p>').join('')
-            : '<p class="task-hint">Текст задания не задан</p>';
-          return `
-            <div class="task-card ${already ? 'on-sheet' : ''}" draggable="true" data-id="${t.id}" title="${escapeHtml((t.topic || '') + (t.school_class ? ' · ' + t.school_class : ''))}">
-              <div class="task-title">${escapeHtml(t.topic)} <span class="badge ${css}">${label}</span></div>
-              <div class="task-body">${bodyHtml}</div>
-              <div class="task-actions">
-                <button type="button" class="add-btn" data-add="${t.id}" ${already ? 'disabled' : ''}>${already ? '✔ Уже на листе' : '＋ На лист'}</button>
-                <span class="task-hint">⠿ или перетащите на лист</span>
-              </div>
-            </div>`;
-        }).join('')}
+        ${renderStacks(byClass[cls], onSheetIds)}
       `).join('');
 
+      bindPanelCards();
+
+      // рендер LaTeX-формул в карточках панели
+      if (window.MathJax && MathJax.typesetPromise) {
+        try { await MathJax.typesetPromise([taskListEl]); } catch (e) {}
+      } else if (window.MathJax && MathJax.startup) {
+        try { await MathJax.startup.promise.then(() => MathJax.typesetPromise([taskListEl])); } catch (e) {}
+      }
+    }
+
+    /* ---------- Стопки аналогов в правой панели ---------- */
+    // Задания одной группы (аналоги) показываются как стопка карточек:
+    // одновременно видна только верхняя. Перетащили её на лист — поднимается
+    // следующая. Оставшиеся варианты можно пролистывать кнопками ‹ › или
+    // перемешать.
+    const stackState = {}; // key -> { pos: number }
+
+    function stackKeyFor(t) {
+      return t.group_id
+        ? 'g' + t.group_id
+        : 't|' + (t.topic || '') + '|' + (t.difficulty || '');
+    }
+
+    function cardBodyHtml(t) {
+      return t.latex_code
+        ? escapeHtml(t.latex_code)
+            .split(/\r?\n/).map(line => line ? `<p>${line}</p>` : '<p>&nbsp;</p>').join('')
+        : '<p class="task-hint">Текст задания не задан</p>';
+    }
+
+    function cardHtml(t, already) {
+      return `
+        <div class="task-card ${already ? 'on-sheet' : ''}" draggable="${already ? 'false' : 'true'}" data-id="${t.id}" title="${escapeHtml((t.topic || '') + (parallelOf(t.school_class) ? ' · ' + parallelOf(t.school_class) + ' класс' : ''))}">
+          <div class="task-title">${escapeHtml(t.topic)} <span class="badge ${DIFF_LABELS[t.difficulty] ? DIFF_LABELS[t.difficulty][1] : 'none'}">${DIFF_LABELS[t.difficulty] ? DIFF_LABELS[t.difficulty][0] : 'Без сложности'}</span></div>
+          <div class="task-body">${cardBodyHtml(t)}</div>
+          <div class="task-actions">
+            <button type="button" class="add-btn" data-add="${t.id}" ${already ? 'disabled' : ''}>${already ? '✔ Уже на листе' : '＋ На лист'}</button>
+            <span class="task-hint">⠿ или перетащите на лист</span>
+          </div>
+        </div>`;
+    }
+
+    function renderStacks(tasks, onSheetIds) {
+      const groups = {};
+      const order = [];
+      tasks.forEach(t => {
+        const k = stackKeyFor(t);
+        if (!groups[k]) { groups[k] = []; order.push(k); }
+        groups[k].push(t);
+      });
+      return order.map(k => {
+        const items = groups[k];
+        if (items.length === 1) {
+          const t = items[0];
+          return cardHtml(t, onSheetIds.has(t.id));
+        }
+        let st = stackState[k];
+        if (!st) { st = stackState[k] = { pos: 0 }; }
+        if (st.pos >= items.length) st.pos = 0;
+        // если верхняя карточка уже на листе — автоматически поднимаем следующую
+        while (st.pos < items.length && onSheetIds.has(items[st.pos].id)) st.pos += 1;
+        if (st.pos >= items.length) st.pos = items.length - 1;
+        const top = items[st.pos];
+        const remaining = items.filter(t => !onSheetIds.has(t.id)).length;
+        const name = top.group_name || top.topic || '';
+        return `
+          <div class="task-stack" data-key="${escapeHtml(k)}">
+            <div class="stack-head">
+              <span class="stack-label">⚡ Аналоги: ${escapeHtml(name)}</span>
+              <span class="stack-counter" data-counter>${st.pos + 1}/${items.length}${remaining !== items.length ? ' · на листе ' + (items.length - remaining) : ''}</span>
+            </div>
+            <div class="stack-cards">
+              <div class="stack-shadow"></div>
+              <div class="stack-shadow second"></div>
+              <div class="stack-top">${cardHtml(top, onSheetIds.has(top.id))}</div>
+            </div>
+            <div class="stack-nav">
+              <button type="button" class="stack-btn prev" data-nav="prev" title="Предыдущий вариант">‹</button>
+              <button type="button" class="stack-btn shuffle" data-nav="shuffle" title="Перемешать варианты">⟲ Перемешать</button>
+              <button type="button" class="stack-btn next" data-nav="next" title="Следующий вариант">›</button>
+            </div>
+          </div>`;
+      }).join('');
+    }
+
+    function bindPanelCards() {
       taskListEl.querySelectorAll('.task-card').forEach(card => {
+        if (card.dataset.bound) return;
+        card.dataset.bound = '1';
         card.addEventListener('dragstart', (e) => {
           e.dataTransfer.setData('text/plain', JSON.stringify({ source: 'panel', id: Number(card.dataset.id) }));
           e.dataTransfer.effectAllowed = 'copy';
@@ -545,6 +677,8 @@
 
       // кнопка быстрой добавления задания на лист
       taskListEl.querySelectorAll('.add-btn[data-add]').forEach(btn => {
+        if (btn.dataset.bound) return;
+        btn.dataset.bound = '1';
         btn.addEventListener('click', (e) => {
           e.stopPropagation();
           const id = Number(btn.dataset.add);
@@ -555,12 +689,35 @@
         });
       });
 
-      // рендер LaTeX-формул в карточках панели
-      if (window.MathJax && MathJax.typesetPromise) {
-        try { await MathJax.typesetPromise([taskListEl]); } catch (e) {}
-      } else if (window.MathJax && MathJax.startup) {
-        try { await MathJax.startup.promise.then(() => MathJax.typesetPromise([taskListEl])); } catch (e) {}
-      }
+      // навигация по стопкам аналогов
+      taskListEl.querySelectorAll('.task-stack').forEach(stack => {
+        if (stack.dataset.bound) return;
+        stack.dataset.bound = '1';
+        const key = stack.dataset.key;
+        const nav = (dir) => {
+          const items = getFilteredTasks().filter(t => stackKeyFor(t) === key);
+          if (!items.length) return;
+          const st = stackState[key] || (stackState[key] = { pos: 0 });
+          if (dir === 'shuffle') {
+            for (let i = items.length - 1; i > 0; i--) {
+              const j = Math.floor(Math.random() * (i + 1));
+              [items[i], items[j]] = [items[j], items[i]];
+            }
+            // перемешиваем реальный порядок заданий этой группы в allTasks
+            const ids = new Set(items.map(t => t.id));
+            const rest = allTasks.filter(t => !ids.has(t.id));
+            allTasks = [...rest, ...items];
+            st.pos = 0;
+          } else {
+            st.pos = dir === 'next'
+              ? (st.pos + 1) % items.length
+              : (st.pos - 1 + items.length) % items.length;
+          }
+          renderTaskList();
+        };
+        stack.querySelectorAll('[data-nav]').forEach(btn =>
+          btn.addEventListener('click', () => nav(btn.dataset.nav)));
+      });
     }
 
     /* ---------- Рендер листа ---------- */
