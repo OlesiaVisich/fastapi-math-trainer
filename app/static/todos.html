@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Кабинет учителя — Мои задачи</title>
+  <title>Кабинет учителя — Список дел</title>
   <style>
     :root {
       --primary: #3b6ea5;
@@ -15,6 +15,7 @@
       --border: #dde4ec;
       --danger: #c0392b;
       --ok: #1e7e34;
+      --warn: #b26a00;
     }
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body { font-family: "Segoe UI", Arial, sans-serif; background: var(--bg); color: var(--text); }
@@ -39,7 +40,7 @@
       margin-bottom: 24px;
     }
     label { display: block; font-size: 14px; color: var(--muted); margin: 12px 0 4px; }
-    input[type="text"], textarea {
+    input[type="text"], input[type="date"], textarea {
       width: 100%;
       padding: 9px 10px;
       border: 1px solid var(--border);
@@ -100,6 +101,8 @@
       padding: 1px 8px;
       font-size: 12px;
     }
+    .tag.deadline-overdue { background: #fdecea; color: var(--danger); font-weight: 600; }
+    .tag.deadline-soon { background: #fff4e0; color: var(--warn); font-weight: 600; }
     .btn-del {
       background: transparent;
       color: var(--danger);
@@ -122,7 +125,7 @@
     <nav>
       <a href="/">Главная</a>
       <a href="/lessons-page">Мои уроки</a>
-      <a href="/todos-page" class="active">Мои задачи</a>
+      <a href="/todos-page" class="active">Список дел</a>
     </nav>
   </header>
 
@@ -130,9 +133,9 @@
     <div id="message" class="message"></div>
 
     <section class="card">
-      <h2>Новая задача</h2>
+      <h2>Новое дело</h2>
       <form id="todo-form">
-        <label for="text">Текст задачи *</label>
+        <label for="text">Что нужно сделать *</label>
         <textarea id="text" name="text" required placeholder="Например: подготовить проверочную работу"></textarea>
 
         <label for="topic">Тема</label>
@@ -141,11 +144,14 @@
         <label for="school_class">Класс</label>
         <input type="text" id="school_class" name="school_class" placeholder="Например: 9А">
 
-        <button type="submit">Добавить задачу</button>
+        <label for="deadline">Дедлайн</label>
+        <input type="date" id="deadline" name="deadline">
+
+        <button type="submit">Добавить дело</button>
       </form>
     </section>
 
-    <h2>Мои задачи</h2>
+    <h2>Список дел</h2>
     <div id="todos"><div class="empty">Загрузка…</div></div>
   </main>
 
@@ -166,16 +172,35 @@
       return div.innerHTML;
     }
 
+    function formatDeadline(iso) {
+      const [y, m, d] = iso.split('-');
+      return `${d}.${m}.${y}`;
+    }
+
+    function deadlineClass(iso) {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const dl = new Date(iso + 'T00:00:00');
+      const diffDays = Math.round((dl - today) / 86400000);
+      if (diffDays < 0) return 'deadline-overdue';
+      if (diffDays <= 2) return 'deadline-soon';
+      return '';
+    }
+
     function todoCard(t) {
+      const deadlineTag = t.deadline
+        ? `<span class="tag ${t.is_done ? '' : deadlineClass(t.deadline)}">⏰ До ${formatDeadline(t.deadline)}</span>`
+        : '';
       return `
         <div class="todo ${t.is_done ? 'done' : ''}">
           <input type="checkbox" class="todo-check" ${t.is_done ? 'checked' : ''}
-                 onchange="toggleTodo(${t.id}, this.checked)" title="Отметить как выполненную">
+                 onchange="toggleTodo(${t.id}, this.checked)" title="Отметить как выполненное">
           <div class="todo-body">
             <div class="todo-text">${escapeHtml(t.text)}</div>
             <div class="todo-meta">
               ${t.topic ? `<span class="tag">📖 ${escapeHtml(t.topic)}</span>` : ''}
               ${t.school_class ? `<span class="tag">🎓 ${escapeHtml(t.school_class)}</span>` : ''}
+              ${deadlineTag}
             </div>
           </div>
           <button class="btn-del" onclick="deleteTodo(${t.id})">Удалить</button>
@@ -185,17 +210,17 @@
     async function loadTodos() {
       const res = await fetch('/todos/');
       if (!res.ok) {
-        todosEl.innerHTML = '<div class="empty">Не удалось загрузить задачи.</div>';
-        showMessage('Не удалось загрузить задачи', false);
+        todosEl.innerHTML = '<div class="empty">Не удалось загрузить список дел.</div>';
+        showMessage('Не удалось загрузить список дел', false);
         return;
       }
       const todos = await res.json();
       if (!todos.length) {
-        todosEl.innerHTML = '<div class="empty">Пока нет ни одной задачи. Добавьте первую выше ☝️</div>';
+        todosEl.innerHTML = '<div class="empty">Пока нет ни одного дела. Добавьте первое выше ☝️</div>';
         return;
       }
 
-      // Группировка задач по классам
+      // Группировка дел по классам
       const groups = {};
       for (const t of todos) {
         const cls = t.school_class || 'Без класса';
@@ -223,11 +248,11 @@
       const res = await fetch('/todos/', { method: 'POST', body: data });
       if (res.ok) {
         form.reset();
-        showMessage('Задача добавлена', true);
+        showMessage('Дело добавлено', true);
         loadTodos();
       } else {
         const err = await res.json().catch(() => null);
-        showMessage(err && err.detail ? err.detail : 'Не удалось добавить задачу', false);
+        showMessage(err && err.detail ? err.detail : 'Не удалось добавить дело', false);
       }
     });
 
@@ -238,19 +263,19 @@
       if (res.ok) {
         loadTodos();
       } else {
-        showMessage('Не удалось обновить задачу', false);
+        showMessage('Не удалось обновить дело', false);
         loadTodos();
       }
     }
 
     async function deleteTodo(id) {
-      if (!confirm('Удалить эту задачу?')) return;
+      if (!confirm('Удалить это дело?')) return;
       const res = await fetch('/todos/' + id, { method: 'DELETE' });
       if (res.ok) {
-        showMessage('Задача удалена', true);
+        showMessage('Дело удалено', true);
         loadTodos();
       } else {
-        showMessage('Не удалось удалить задачу', false);
+        showMessage('Не удалось удалить дело', false);
       }
     }
 

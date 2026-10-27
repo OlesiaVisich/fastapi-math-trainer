@@ -126,28 +126,30 @@ class Lesson(LessonBase):
 
 
 class TodoBase(BaseModel):
-    """Базовая модель задачи."""
+    """Базовая модель дела."""
 
     text: str
     topic: Optional[str] = None
     school_class: Optional[str] = None
+    deadline: Optional[date] = None
 
 
 class TodoCreate(TodoBase):
-    """Создание задачи."""
+    """Создание дела."""
 
 
 class TodoUpdate(BaseModel):
-    """Обновление задачи (все поля опциональны)."""
+    """Обновление дела (все поля опциональны)."""
 
     text: Optional[str] = None
     topic: Optional[str] = None
     school_class: Optional[str] = None
+    deadline: Optional[date] = None
     is_done: Optional[bool] = None
 
 
 class Todo(TodoBase):
-    """Задача с ID и статусом выполнения."""
+    """Дело с ID и статусом выполнения."""
 
     id: int
     user_id: Optional[int] = None
