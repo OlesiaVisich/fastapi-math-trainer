@@ -39,68 +39,6 @@
     }
     nav a.active, nav a:hover { opacity: 1; font-weight: 600; }
     main { max-width: 960px; margin: 24px auto; padding: 0 16px; }
-    h2 { margin-bottom: 16px; font-size: 22px; }
-    .card {
-      background: var(--card);
-      border: 1px solid var(--border);
-      border-radius: 10px;
-      padding: 20px;
-      margin-bottom: 24px;
-    }
-    label { display: block; font-size: 14px; color: var(--muted); margin: 12px 0 4px; }
-    input[type="text"], input[type="date"], textarea, input[type="file"] {
-      width: 100%;
-      padding: 9px 10px;
-      border: 1px solid var(--border);
-      border-radius: 6px;
-      font-size: 14px;
-      font-family: inherit;
-      background: #fff;
-    }
-    textarea { min-height: 80px; resize: vertical; }
-    button {
-      background: var(--primary);
-      color: #fff;
-      border: none;
-      border-radius: 6px;
-      padding: 10px 18px;
-      font-size: 15px;
-      cursor: pointer;
-      margin-top: 16px;
-    }
-    button:hover { background: var(--primary-dark); }
-    .lesson {
-      border: 1px solid var(--border);
-      border-radius: 10px;
-      padding: 16px 20px;
-      margin-bottom: 14px;
-      background: var(--card);
-    }
-    .lesson-top { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
-    .lesson-topic { font-size: 17px; font-weight: 600; }
-    .lesson-date { color: var(--muted); font-size: 14px; white-space: nowrap; }
-    .lesson-desc { margin-top: 8px; font-size: 14px; white-space: pre-wrap; }
-    .lesson-hw { margin-top: 8px; font-size: 14px; }
-    .lesson-hw b { color: var(--primary-dark); }
-    .lesson-footer { margin-top: 10px; display: flex; gap: 14px; align-items: center; font-size: 14px; }
-    .lesson-footer a { color: var(--primary); text-decoration: none; }
-    .lesson-footer a:hover { text-decoration: underline; }
-    .pdf-none { color: var(--muted); }
-    .btn-del {
-      background: transparent;
-      color: var(--danger);
-      border: 1px solid var(--danger);
-      padding: 4px 12px;
-      font-size: 13px;
-      margin-top: 0;
-      margin-left: auto;
-    }
-    .btn-del:hover { background: var(--danger); color: #fff; }
-    .empty { color: var(--muted); font-size: 15px; padding: 8px 0; }
-    .message { padding: 10px 14px; border-radius: 6px; margin-bottom: 14px; font-size: 14px; display: none; }
-    .message.ok { display: block; background: #e6f4ea; color: #1e7e34; }
-    .message.err { display: block; background: #fdecea; color: var(--danger); }
-    .hint { font-size: 12px; color: var(--muted); margin-top: 3px; }
   </style>
 </head>
 <body>
@@ -110,71 +48,12 @@
       <a href="/" class="active">Главная</a>
       <a href="/lessons-page">Мои уроки</a>
       <a href="/todos-page">Список дел</a>
+      <a href="/tasks-page">Задания</a>
     </nav>
   </header>
 
   <main>
-    <div id="message" class="message"></div>
-
-    <section class="card">
-      <h2>Создать урок</h2>
-      <form id="lesson-form">
-        <label for="topic">Тема урока *</label>
-        <input type="text" id="topic" name="topic" required placeholder="Например: Квадратные уравнения">
-
-        <label for="description">Текстовое описание</label>
-        <textarea id="description" name="description" placeholder="План урока, цели, заметки…"></textarea>
-
-        <label for="school_class">Класс *</label>
-        <input type="text" id="school_class" name="school_class" required placeholder="Например: 9А">
-
-        <label for="homework">Домашняя работа</label>
-        <textarea id="homework" name="homework" placeholder="Номера упражнений, страницы…"></textarea>
-
-        <label for="tasks_pdf">Файл с задачами (PDF)</label>
-        <input type="file" id="tasks_pdf" name="tasks_pdf" accept=".pdf,application/pdf">
-        <div class="hint">Загрузите PDF с задачами на урок.</div>
-
-        <button type="submit">Создать урок</button>
-      </form>
-    </section>
-
-    <section class="card">
-      <h2>Просмотр уроков</h2>
-      <p style="font-size:15px;">Все созданные уроки отображаются в разделе <a href="/lessons-page" style="color:var(--primary); font-weight:600;">«Мои уроки»</a>, сгруппированные по классам.</p>
-    </section>
+    <!-- Главная страница пока пустая: контент будет добавлен позже -->
   </main>
-
-  <script>
-    const formEl = document.getElementById('lesson-form');
-    const messageEl = document.getElementById('message');
-
-    function showMessage(text, ok) {
-      messageEl.textContent = text;
-      messageEl.className = 'message ' + (ok ? 'ok' : 'err');
-      setTimeout(() => { messageEl.className = 'message'; }, 4000);
-    }
-
-    function escapeHtml(s) {
-      const div = document.createElement('div');
-      div.textContent = s == null ? '' : String(s);
-      return div.innerHTML;
-    }
-
-    formEl.addEventListener('submit', async (e) => {
-      e.preventDefault();
-      const data = new FormData(formEl);
-      if (!data.get('topic')) { showMessage('Укажите тему урока', false); return; }
-      if (!data.get('school_class')) { showMessage('Укажите класс', false); return; }
-      const res = await fetch('/lessons/', { method: 'POST', body: data });
-      if (res.ok) {
-        showMessage('Урок создан. Смотрите его в разделе «Мои уроки»', true);
-        formEl.reset();
-      } else {
-        const err = await res.json().catch(() => ({}));
-        showMessage(err.detail ? JSON.stringify(err.detail) : 'Ошибка при создании урока', false);
-      }
-    });
-  </script>
 </body>
 </html>

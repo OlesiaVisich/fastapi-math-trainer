@@ -2,7 +2,7 @@
 from sqlalchemy import inspect, text
 
 from app.database import engine, Base
-from app.models import User, Worksheet, Task, Lesson, TodoItem
+from app.models import User, Worksheet, Task, Lesson, TodoItem, Assignment
 
 print("Создаём таблицы...")
 Base.metadata.create_all(bind=engine)

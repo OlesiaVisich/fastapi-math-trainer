@@ -71,3 +71,15 @@ class TodoItem(Base):
     is_done = Column(Boolean, default=False)
     created_at = Column(DateTime, default=datetime.utcnow)
     user_id = Column(Integer, ForeignKey("users.id"))
+
+
+class Assignment(Base):
+    """Задание для учеников: класс, тема, сложность."""
+
+    __tablename__ = "assignments"
+    id = Column(Integer, primary_key=True, index=True)
+    school_class = Column(String, nullable=False, index=True)
+    topic = Column(String, nullable=False)
+    difficulty = Column(String, nullable=True, index=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    user_id = Column(Integer, ForeignKey("users.id"))

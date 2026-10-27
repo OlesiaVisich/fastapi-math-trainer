@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Кабинет учителя — Задания</title>
+  <style>
+    :root {
+      --primary: #3b6ea5;
+      --primary-dark: #2f5a88;
+      --bg: #f4f6f9;
+      --card: #ffffff;
+      --text: #22303e;
+      --muted: #6b7a8c;
+      --border: #dde4ec;
+      --danger: #c0392b;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: "Segoe UI", Arial, sans-serif; background: var(--bg); color: var(--text); }
+    header {
+      background: var(--primary);
+      color: #fff;
+      padding: 16px 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    header h1 { font-size: 20px; font-weight: 600; }
+    nav a { color: #fff; text-decoration: none; margin-left: 18px; font-size: 15px; opacity: .85; }
+    nav a.active, nav a:hover { opacity: 1; font-weight: 600; }
+    main { max-width: 960px; margin: 24px auto; padding: 0 16px; }
+    h2 { margin-bottom: 16px; font-size: 22px; }
+
+    /* Плавающая кнопка «+» справа снизу */
+    .fab {
+      position: fixed;
+      right: 28px;
+      bottom: 28px;
+      width: 58px;
+      height: 58px;
+      border-radius: 50%;
+      background: var(--primary);
+      color: #fff;
+      border: none;
+      font-size: 32px;
+      line-height: 1;
+      cursor: pointer;
+      box-shadow: 0 4px 14px rgba(47, 90, 136, .45);
+      z-index: 60;
+      transition: transform .15s ease, background .15s ease;
+    }
+    .fab:hover { background: var(--primary-dark); transform: scale(1.06); }
+
+    /* Модальное окно добавления задания */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(20, 30, 45, .55);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 70;
+      padding: 16px;
+    }
+    .modal-overlay.open { display: flex; }
+    .modal {
+      background: var(--card);
+      border-radius: 12px;
+      padding: 22px;
+      width: 100%;
+      max-width: 460px;
+      box-shadow: 0 12px 40px rgba(0, 0, 0, .25);
+      max-height: 90vh;
+      overflow-y: auto;
+    }
+    .modal-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
+    .modal-head h2 { margin: 0; font-size: 20px; }
+    .modal-close {
+      background: transparent;
+      border: none;
+      font-size: 24px;
+      color: var(--muted);
+      cursor: pointer;
+      margin: 0;
+      padding: 0 4px;
+    }
+    .modal-close:hover { color: var(--danger); }
+    .modal-actions { display: flex; gap: 10px; margin-top: 18px; }
+    .btn-submit {
+      flex: 1;
+      padding: 14px 20px;
+      font-size: 16px;
+      font-weight: 700;
+      border: none;
+      border-radius: 8px;
+      color: #fff;
+      cursor: pointer;
+      background: linear-gradient(135deg, #3b6ea5, #2fa36b);
+      box-shadow: 0 4px 12px rgba(47, 90, 136, .35);
+      transition: transform .15s ease, box-shadow .15s ease;
+    }
+    .btn-submit:hover { transform: translateY(-1px); box-shadow: 0 6px 16px rgba(47, 90, 136, .45); }
+    .btn-secondary {
+      background: #eef2f7;
+      color: var(--text);
+      border: 1px solid var(--border);
+    }
+    .btn-secondary:hover { background: #dfe7f0; }
+
+    label { display: block; font-size: 14px; color: var(--muted); margin: 12px 0 4px; }
+    input[type="text"], select {
+      width: 100%;
+      padding: 9px 10px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      font-size: 14px;
+      font-family: inherit;
+      background: #fff;
+    }
+
+    .message { padding: 10px 14px; border-radius: 6px; margin-bottom: 14px; font-size: 14px; display: none; }
+    .message.ok { display: block; background: #e6f4ea; color: #1e7e34; }
+    .message.err { display: block; background: #fdecea; color: var(--danger); }
+
+    /* Разделы по классам */
+    .class-section { margin-bottom: 30px; }
+    .class-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 12px;
+      padding-bottom: 6px;
+      border-bottom: 2px solid var(--primary);
+    }
+    .class-header h3 { font-size: 19px; color: var(--primary-dark); }
+    .class-count {
+      background: var(--primary);
+      color: #fff;
+      font-size: 12px;
+      border-radius: 10px;
+      padding: 2px 10px;
+    }
+    .assignment {
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 12px 16px;
+      margin-bottom: 10px;
+      background: var(--card);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+    .assignment-title { font-size: 15px; font-weight: 600; }
+    .badge {
+      display: inline-block;
+      font-size: 12px;
+      border-radius: 10px;
+      padding: 2px 10px;
+      margin-left: 8px;
+      color: #fff;
+      vertical-align: middle;
+    }
+    .badge.easy { background: #2fa36b; }
+    .badge.medium { background: #e6a23c; }
+    .badge.hard { background: #c0392b; }
+    .badge.none { background: #9aa8b8; }
+    .btn-del {
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--danger);
+      border-radius: 6px;
+      padding: 6px 12px;
+      font-size: 13px;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+    .btn-del:hover { background: #fdecea; }
+    .empty { color: var(--muted); font-size: 15px; padding: 20px 0; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>📚 Кабинет учителя</h1>
+    <nav>
+      <a href="/">Главная</a>
+      <a href="/lessons-page">Мои уроки</a>
+      <a href="/todos-page">Список дел</a>
+      <a href="/tasks-page" class="active">Задания</a>
+    </nav>
+  </header>
+
+  <main>
+    <div id="message" class="message"></div>
+    <h2>Задания</h2>
+    <div id="assignments-list"></div>
+  </main>
+
+  <!-- Плавающая кнопка добавления -->
+  <button class="fab" id="fab-add" title="Добавить задание" onclick="openModal()">+</button>
+
+  <!-- Модальное окно добавления задания -->
+  <div class="modal-overlay" id="modal-overlay">
+    <div class="modal">
+      <div class="modal-head">
+        <h2>Новое задание</h2>
+        <button class="modal-close" onclick="closeModal()" title="Закрыть">×</button>
+      </div>
+      <form id="assignment-form">
+        <label for="school_class">Класс *</label>
+        <input type="text" id="school_class" name="school_class" required placeholder="Например: 9А">
+
+        <label for="topic">Тема *</label>
+        <input type="text" id="topic" name="topic" required placeholder="Например: Квадратные уравнения">
+
+        <label for="difficulty">Сложность</label>
+        <select id="difficulty" name="difficulty">
+          <option value="">— не указана —</option>
+          <option value="простая">Простая</option>
+          <option value="средняя">Средняя</option>
+          <option value="высокая">Высокая</option>
+        </select>
+
+        <div class="modal-actions">
+          <button type="submit" class="btn-submit">➕ Добавить задание</button>
+          <button type="button" class="btn-secondary" onclick="closeModal()">Отмена</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script>
+    const listEl = document.getElementById('assignments-list');
+    const messageEl = document.getElementById('message');
+    const formEl = document.getElementById('assignment-form');
+    const overlayEl = document.getElementById('modal-overlay');
+
+    function showMessage(text, ok) {
+      messageEl.textContent = text;
+      messageEl.className = 'message ' + (ok ? 'ok' : 'err');
+      setTimeout(() => { messageEl.className = 'message'; }, 4000);
+    }
+
+    function escapeHtml(s) {
+      const div = document.createElement('div');
+      div.textContent = s == null ? '' : String(s);
+      return div.innerHTML;
+    }
+
+    function openModal() {
+      overlayEl.classList.add('open');
+      document.getElementById('school_class').focus();
+    }
+    function closeModal() {
+      overlayEl.classList.remove('open');
+      formEl.reset();
+    }
+    overlayEl.addEventListener('click', (e) => { if (e.target === overlayEl) closeModal(); });
+    document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeModal(); });
+
+    const DIFF_LABELS = {
+      'простая': ['Простая', 'easy'],
+      'средняя': ['Средняя', 'medium'],
+      'высокая': ['Высокая', 'hard'],
+    };
+
+    async function loadAssignments() {
+      const res = await fetch('/assignments/');
+      if (!res.ok) { showMessage('Ошибка загрузки заданий', false); return; }
+      const items = await res.json();
+      if (!items.length) {
+        listEl.innerHTML = '<div class="empty">Заданий пока нет. Нажмите «+», чтобы добавить первое.</div>';
+        return;
+      }
+      // Группировка по классам
+      const byClass = {};
+      items.forEach((a) => {
+        const cls = a.school_class || 'Без класса';
+        (byClass[cls] = byClass[cls] || []).push(a);
+      });
+      const classes = Object.keys(byClass).sort((a, b) => a.localeCompare(b, 'ru'));
+      listEl.innerHTML = classes.map((cls) => `
+        <section class="class-section">
+          <div class="class-header">
+            <h3>${escapeHtml(cls)}</h3>
+            <span class="class-count">${byClass[cls].length}</span>
+          </div>
+          ${byClass[cls].map(renderAssignment).join('')}
+        </section>
+      `).join('');
+    }
+
+    function renderAssignment(a) {
+      const [label, css] = DIFF_LABELS[a.difficulty] || ['Без сложности', 'none'];
+      return `
+        <div class="assignment">
+          <div>
+            <span class="assignment-title">${escapeHtml(a.topic)}</span>
+            <span class="badge ${css}">${label}</span>
+          </div>
+          <button class="btn-del" onclick="deleteAssignment(${a.id})">Удалить</button>
+        </div>`;
+    }
+
+    async function deleteAssignment(id) {
+      if (!confirm('Удалить задание?')) return;
+      const res = await fetch(`/assignments/${id}`, { method: 'DELETE' });
+      if (res.ok) {
+        showMessage('Задание удалено', true);
+        loadAssignments();
+      } else {
+        showMessage('Ошибка при удалении', false);
+      }
+    }
+
+    formEl.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const data = new FormData(formEl);
+      if (!data.get('school_class').trim()) { showMessage('Укажите класс', false); return; }
+      if (!data.get('topic').trim()) { showMessage('Укажите тему', false); return; }
+      const res = await fetch('/assignments/', { method: 'POST', body: data });
+      if (res.ok) {
+        showMessage('Задание добавлено', true);
+        closeModal();
+        loadAssignments();
+      } else {
+        const err = await res.json().catch(() => ({}));
+        showMessage(err.detail ? String(err.detail) : 'Ошибка при добавлении задания', false);
+      }
+    });
+
+    loadAssignments();
+  </script>
+</body>
+</html>

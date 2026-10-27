@@ -3,7 +3,7 @@ import os
 
 from fastapi import FastAPI
 from fastapi.responses import FileResponse
-from app.api import auth, users, worksheets, generate, lessons, todos
+from app.api import auth, users, worksheets, generate, lessons, todos, assignments
 
 app = FastAPI()
 
@@ -13,6 +13,7 @@ app.include_router(worksheets.router, prefix="/worksheets", tags=["worksheets"])
 app.include_router(generate.router, prefix="/api", tags=["generate"])
 app.include_router(lessons.router, prefix="/lessons", tags=["lessons"])
 app.include_router(todos.router, prefix="/todos", tags=["todos"])
+app.include_router(assignments.router, prefix="/assignments", tags=["assignments"])
 
 STATIC_DIR = os.path.join(os.path.dirname(__file__), "static")
 
@@ -31,5 +32,11 @@ def lessons_page():
 
 @app.get("/todos-page", include_in_schema=False)
 def todos_page():
-    """Страница «Мои задачи»."""
+    """Страница «Список дел»."""
     return FileResponse(os.path.join(STATIC_DIR, "todos.html"))
+
+
+@app.get("/tasks-page", include_in_schema=False)
+def tasks_page():
+    """Страница «Задания» (задания для учеников)."""
+    return FileResponse(os.path.join(STATIC_DIR, "tasks.html"))

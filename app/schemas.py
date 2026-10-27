@@ -160,3 +160,28 @@ class Todo(TodoBase):
         """Конфигурация модели."""
 
         from_attributes = True
+
+
+class AssignmentBase(BaseModel):
+    """Базовая модель задания для учеников."""
+
+    school_class: str
+    topic: str
+    difficulty: Optional[str] = None
+
+
+class AssignmentCreate(AssignmentBase):
+    """Создание задания."""
+
+
+class Assignment(AssignmentBase):
+    """Задание с ID и метаданными."""
+
+    id: int
+    user_id: Optional[int] = None
+    created_at: datetime
+
+    class Config:
+        """Конфигурация модели."""
+
+        from_attributes = True
