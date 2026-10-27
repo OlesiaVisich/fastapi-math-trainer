@@ -141,15 +141,23 @@
        из-за чего без явного font-size формула наследует огромный кегль и
        "растёт" на весь экран. Поэтому задаём font-size явно и переопределяем
        размеры контейнера/сvg. */
-    .sheet-item { font-size: 14px; }
-    mjx-container { max-width: 100%; font-size: 14px !important; }
-    mjx-container[display="true"] { display: block; margin: 4px 0 !important; }
-    mjx-container svg {
+    .sheet-item { font-size: 14px; line-height: 1.5; }
+    /* MathJax v3 (tex-svg): контейнер и SVG наследуют размер шрифта от текста,
+       поэтому явно ставим 14px везде и запрещаем рост за пределы листа. */
+    mjx-container {
       max-width: 100% !important;
-      height: auto !important;
+      overflow-x: auto;
+      font-size: 14px !important;
+      margin: 4px 0 !important;
+    }
+    mjx-container[display="true"] { display: block; text-align: left; }
+    mjx-container > svg {
+      font-size: inherit !important;
+      max-width: 100% !important;
       width: auto !important;
-      font-size: 14px;
+      height: auto !important;
       display: inline-block;
+      vertical-align: middle;
     }
 
     /* ---------- Панель заданий ---------- */
