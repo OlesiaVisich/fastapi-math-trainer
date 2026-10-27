@@ -165,6 +165,10 @@
     .badge.medium { background: #e6a23c; }
     .badge.hard { background: #c0392b; }
     .badge.none { background: #9aa8b8; }
+    .badge.group { background: #7c3aed; }
+    .radio-row { display: flex; gap: 16px; flex-wrap: wrap; margin-bottom: 8px; }
+    .radio-row label { font-weight: normal; }
+    .hint { font-size: 12px; color: var(--muted, #7a8794); margin: 4px 0 0; }
     .btn-del {
       background: transparent;
       border: 1px solid var(--border);
@@ -288,9 +292,38 @@
           <option value="высокая">Высокая</option>
         </select>
 
-        <label for="latex_code">LaTeX-код задания</label>
-        <textarea id="latex_code" name="latex_code" rows="8"
-          placeholder="Например: $$x^2 - 5x + 6 = 0$$&#10;Найдите корни уравнения."></textarea>
+        <label>Источник заданий</label>
+        <div class="radio-row">
+          <label><input type="radio" name="source_mode" value="text" checked onchange="toggleSource()"> Ввести LaTeX-код текстом</label>
+          <label><input type="radio" name="source_mode" value="file" onchange="toggleSource()"> Загрузить документ (.txt / .tex)</label>
+        </div>
+
+        <div id="source-text">
+          <label for="latex_code">LaTeX-код задания(й)</label>
+          <textarea id="latex_code" name="latex_code" rows="8"
+            placeholder="Одно задание:&#10;$$x^2 - 5x + 6 = 0$$&#10;&#10;Несколько аналогов — разделяйте их пустой строкой:&#10;$$x + 12 = 17$$&#10;&#10;$$x + 25 = 40$$&#10;&#10;$$x + 31 = 55$$"></textarea>
+        </div>
+        <div id="source-file" hidden>
+          <label for="file">Файл с заданиями</label>
+          <input type="file" id="file" name="file" accept=".txt,.tex,.md,text/plain">
+          <p class="hint">Каждое задание в файле отделяйте пустой строкой.</p>
+        </div>
+
+        <label for="group_mode">Группа аналогов</label>
+        <select id="group_mode" name="group_mode" onchange="toggleGroup()">
+          <option value="none">Без группы (одиночное задание)</option>
+          <option value="new">Создать новую группу аналогов</option>
+          <option value="existing">Добавить в существующую группу</option>
+        </select>
+        <div id="group-new" hidden>
+          <label for="new_group_name">Название группы</label>
+          <input type="text" id="new_group_name" name="new_group_name"
+            placeholder="Например: Линейные уравнения, лист 1">
+        </div>
+        <div id="group-existing" hidden>
+          <label for="existing_group_id">Существующая группа</label>
+          <select id="existing_group_id" name="existing_group_id"></select>
+        </div>
 
         <div class="modal-actions">
           <button type="submit" class="btn-submit">➕ Добавить задание</button>
@@ -334,11 +367,43 @@
 
     function openModal() {
       overlayEl.classList.add('open');
+      loadGroups();
       document.getElementById('school_class').focus();
     }
     function closeModal() {
       overlayEl.classList.remove('open');
       formEl.reset();
+      toggleSource();
+      toggleGroup();
+    }
+
+    function toggleSource() {
+      const mode = formEl.querySelector('input[name="source_mode"]:checked').value;
+      document.getElementById('source-text').hidden = mode !== 'text';
+      document.getElementById('source-file').hidden = mode !== 'file';
+      if (mode === 'file') {
+        formEl.querySelectorAll('[data-from-file]').forEach((el) => el.remove());
+      } else {
+        formEl.file.value = '';
+      }
+    }
+
+    function toggleGroup() {
+      const mode = document.getElementById('group_mode').value;
+      document.getElementById('group-new').hidden = mode !== 'new';
+      document.getElementById('group-existing').hidden = mode !== 'existing';
+    }
+
+    async function loadGroups() {
+      const sel = document.getElementById('existing_group_id');
+      try {
+        const res = await fetch('/assignments/groups');
+        if (!res.ok) return;
+        const groups = await res.json();
+        sel.innerHTML = groups.length
+          ? groups.map((g) => `<option value="${g.id}">${escapeHtml(g.name)} (${g.assignments_count})</option>`).join('')
+          : '<option value="">— групп пока нет —</option>';
+      } catch (e) { /* не критично */ }
     }
     overlayEl.addEventListener('click', (e) => { if (e.target === overlayEl) closeModal(); });
     document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeModal(); });
@@ -381,11 +446,15 @@
       const viewBtn = a.latex_code
         ? `<button class="btn-view" onclick="viewAssignment(${a.id})">👁 Просмотр</button>`
         : '';
+      const groupBadge = a.group_name
+        ? `<span class="badge group" title="Аналог в группе">⚡ ${escapeHtml(a.group_name)}</span>`
+        : '';
       return `
         <div class="assignment">
           <div>
             <span class="assignment-title">${escapeHtml(a.topic)}</span>
             <span class="badge ${css}">${label}</span>
+            ${groupBadge}
           </div>
           <div style="display:flex; gap:8px;">
             ${viewBtn}
@@ -459,14 +528,48 @@
       }
     }
 
+    /* ---------- Чтение файла с заданиями на клиенте ---------- */
+    function readFileAsText(file) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(String(reader.result || ''));
+        reader.onerror = reject;
+        reader.readAsText(file, 'UTF-8');
+      });
+    }
+
     formEl.addEventListener('submit', async (e) => {
       e.preventDefault();
       const data = new FormData(formEl);
       if (!data.get('school_class').trim()) { showMessage('Укажите класс', false); return; }
       if (!data.get('topic').trim()) { showMessage('Укажите тему', false); return; }
+
+      // Если выбран файл — читаем его и отправляем текстом (надёжно с кириллицей)
+      const mode = formEl.querySelector('input[name="source_mode"]:checked').value;
+      if (mode === 'file') {
+        const f = formEl.file.files[0];
+        if (!f) { showMessage('Выберите файл с заданиями', false); return; }
+        let text;
+        try { text = await readFileAsText(f); }
+        catch (err) { showMessage('Не удалось прочитать файл', false); return; }
+        data.set('latex_code', text);
+        data.delete('file');
+        formEl.querySelectorAll('[data-from-file]').forEach((el) => el.remove());
+      } else {
+        formEl.file.value = '';
+        data.delete('file');
+      }
+
+      if (!(data.get('latex_code') || '').trim()) {
+        showMessage('Добавьте LaTeX-код заданий', false); return;
+      }
+
       const res = await fetch('/assignments/', { method: 'POST', body: data });
       if (res.ok) {
-        showMessage('Задание добавлено', true);
+        const created = await res.json();
+        showMessage(created.length > 1
+          ? `Добавлено аналогов: ${created.length}`
+          : 'Задание добавлено', true);
         closeModal();
         loadAssignments();
       } else {

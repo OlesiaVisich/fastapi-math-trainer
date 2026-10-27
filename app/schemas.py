@@ -169,10 +169,25 @@ class AssignmentBase(BaseModel):
     topic: str
     difficulty: Optional[str] = None
     latex_code: Optional[str] = None
+    group_id: Optional[int] = None
+    group_name: Optional[str] = None
 
 
 class AssignmentCreate(AssignmentBase):
     """Создание задания."""
+
+
+class AssignmentGroupOut(BaseModel):
+    """Группа аналогов заданий."""
+
+    id: int
+    name: str
+    assignments_count: int = 0
+
+    class Config:
+        """Конфигурация модели."""
+
+        from_attributes = True
 
 
 class Assignment(AssignmentBase):
