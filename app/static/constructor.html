@@ -135,29 +135,30 @@
     }
     .item-remove:hover { color: var(--danger); }
     .item-body p { margin: 2px 0; white-space: pre-wrap; overflow-wrap: anywhere; }
-    /* Ограничение размеров отрендеренного LaTeX (MathJax): формулы не должны
-       выходить за пределы листа и занимать весь экран.
-       Ключевой момент: у SVG MathJax выставляет width/height в единицах "ex",
-       из-за чего без явного font-size формула наследует огромный кегль и
-       "растёт" на весь экран. Поэтому задаём font-size явно и переопределяем
-       размеры контейнера/сvg. */
-    .sheet-item { font-size: 14px; line-height: 1.5; }
-    /* MathJax v3 (tex-svg): контейнер и SVG наследуют размер шрифта от текста,
-       поэтому явно ставим 14px везде и запрещаем рост за пределы листа. */
-    mjx-container {
-      max-width: 100% !important;
-      overflow-x: auto;
-      font-size: 14px !important;
-      margin: 4px 0 !important;
+    /* ---------- Рендер LaTeX как в Overleaf ----------
+       Задание на листе оформляется как компилированный LaTeX-документ:
+       шрифт Computer Modern (серифный), 14px, формулы — обычным текстовым
+       размером (как \[ ... \] в статье). Используется MathJax c выводом CHTML
+       (шрифты, а не SVG): SVG-вывод в сочетании с переопределением CSS
+       давал эффект "формула на весь экран". */
+    .sheet-item { font-size: 14px; line-height: 1.6; }
+    .item-body.latex-doc {
+      font-family: "Latin Modern Roman", "Computer Modern", "CMU Serif",
+                   Georgia, "Times New Roman", serif;
+      font-size: 14px;
+      color: #111;
     }
-    mjx-container[display="true"] { display: block; text-align: left; }
-    mjx-container > svg {
-      font-size: inherit !important;
-      max-width: 100% !important;
-      width: auto !important;
-      height: auto !important;
-      display: inline-block;
-      vertical-align: middle;
+    .item-body.latex-doc p { margin: 4px 0; }
+    mjx-container {
+      font-size: 100% !important;   /* формулы того же кегля, что и текст */
+      margin: 2px 0 !important;
+    }
+    mjx-container[display="true"] {
+      display: block !important;
+      text-align: center;           /* как $$...$$ в LaTeX */
+      margin: 8px 0 !important;
+      overflow-x: auto;             /* широкая формула скроллится, а не растёт */
+      overflow-y: hidden;
     }
 
     /* ---------- Панель заданий ---------- */
@@ -240,10 +241,17 @@
         inlineMath: [['$', '$'], ['\\(', '\\)']],
         displayMath: [['$$', '$$'], ['\\[', '\\]']]
       },
-      svg: { fontCache: 'global' }
+      options: {
+        // MathJax сам управляет стилями mjx-container; не даём CSS-файлу
+        // страницы конфликтовать с выводом
+        enableMenu: false
+      },
+      chtml: { scale: 1.0, displayAlign: 'center', displayIndent: '0' }
     };
   </script>
-  <script async id="MathJax-script" src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"></script>
+  <!-- CHTML-вывод (шрифты Computer Modern, как при компиляции LaTeX/Overleaf),
+       синхронная загрузка до отрисовки формул -->
+  <script id="MathJax-script" src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js"></script>
 </head>
 <body>
   <header>
@@ -441,6 +449,9 @@
           <button class="item-remove" title="Убрать с листа" onclick="removeItem(${idx})">✕</button>`;
         const body = div.querySelector('.item-body');
         if (t.latex_code) {
+          // Рендер "как скомпилированный LaTeX-файл": серифный шрифт Computer
+          // Modern, 14px; текст и формулы обрабатывает MathJax (CHTML).
+          body.classList.add('latex-doc');
           body.innerHTML = escapeHtml(t.latex_code)
             .split(/\r?\n/).map(line => line ? `<p>${line}</p>` : '<p>&nbsp;</p>').join('');
           typeset(body);
