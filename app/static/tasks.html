@@ -191,6 +191,10 @@
 
     /* Просмотр задания (всплывающее окно с отрендеренным LaTeX) */
     .viewer-body { max-height: 60vh; overflow-y: auto; margin-top: 8px; }
+    /* Ограничение размеров отрендеренного LaTeX (MathJax) */
+    mjx-container { max-width: 100%; }
+    mjx-container[display="true"] { display: block; margin: 4px 0 !important; }
+    mjx-container svg { max-width: 100% !important; height: auto; display: inline-block; }
     .viewer-meta { font-size: 14px; color: var(--muted); margin-bottom: 10px; }
     .viewer-latex {
       border: 1px dashed var(--border);

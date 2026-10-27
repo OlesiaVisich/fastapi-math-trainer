@@ -1,6 +1,1 @@
-*.pyc
-__pycache__/
-.venv/
-test.db
-app/uploads/
-update.b64
+*.log
