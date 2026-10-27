@@ -129,7 +129,7 @@ class TodoBase(BaseModel):
     """Базовая модель дела."""
 
     text: str
-    topic: Optional[str] = None
+    todo_type: Optional[str] = None
     school_class: Optional[str] = None
     deadline: Optional[date] = None
 
@@ -142,7 +142,7 @@ class TodoUpdate(BaseModel):
     """Обновление дела (все поля опциональны)."""
 
     text: Optional[str] = None
-    topic: Optional[str] = None
+    todo_type: Optional[str] = None
     school_class: Optional[str] = None
     deadline: Optional[date] = None
     is_done: Optional[bool] = None

@@ -60,12 +60,12 @@ class Lesson(Base):
 
 
 class TodoItem(Base):
-    """Дело учителя: текст, тема, класс, дедлайн, статус выполнения."""
+    """Дело учителя: текст, тип, класс, дедлайн, статус выполнения."""
 
     __tablename__ = "todo_items"
     id = Column(Integer, primary_key=True, index=True)
     text = Column(Text, nullable=False)
-    topic = Column(String, nullable=True, index=True)
+    todo_type = Column(String, nullable=True, index=True)
     school_class = Column(String, nullable=True, index=True)
     deadline = Column(Date, nullable=True, index=True)
     is_done = Column(Boolean, default=False)

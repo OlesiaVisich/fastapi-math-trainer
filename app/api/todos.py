@@ -11,6 +11,22 @@ from app.schemas import Todo
 
 router = APIRouter()
 
+# Допустимые типы дел (выбираются из выпадающего списка)
+TODO_TYPES = ["встреча", "написать работу", "проверить работу", "ответить на письмо", "другое"]
+
+
+def _validate_type(value):
+    """Проверяет, что тип дела входит в допустимый список."""
+    if value is None or not value.strip():
+        return None
+    v = value.strip().lower()
+    if v not in TODO_TYPES:
+        raise HTTPException(
+            status_code=400,
+            detail="Недопустимый тип дела. Варианты: " + ", ".join(TODO_TYPES),
+        )
+    return v
+
 
 def get_db():
     """Получает сессию базы данных."""
@@ -34,15 +50,15 @@ def _parse_deadline(value: Optional[str]):
 @router.post("/", response_model=Todo)
 def create_todo(
     text: str = Form(...),
-    topic: Optional[str] = Form(None),
+    type: Optional[str] = Form(None),
     school_class: Optional[str] = Form(None),
     deadline: Optional[str] = Form(None),
     db: Session = Depends(get_db),
 ):
-    """Создаёт дело: текст, тема, класс и дедлайн."""
+    """Создаёт дело: текст, тип, класс и дедлайн."""
     todo = TodoItem(
         text=text.strip(),
-        topic=(topic or "").strip() or None,
+        todo_type=_validate_type(type),
         school_class=(school_class or "").strip() or None,
         deadline=_parse_deadline(deadline),
     )
@@ -57,21 +73,27 @@ def create_todo(
 @router.get("/", response_model=List[Todo])
 def list_todos(
     school_class: Optional[str] = None,
-    topic: Optional[str] = None,
+    type: Optional[str] = None,
     skip: int = 0,
-    limit: int = 200,
+    limit: int = 500,
     db: Session = Depends(get_db),
 ):
     """Получает список дел (раздел «Список дел»), новые сверху.
 
-    Параметры school_class и topic фильтруют дела по классу/теме.
+    Параметры school_class и type фильтруют дела по классу/типу.
     """
     query = db.query(TodoItem)
     if school_class:
         query = query.filter(TodoItem.school_class == school_class)
-    if topic:
-        query = query.filter(TodoItem.topic == topic)
+    if type:
+        query = query.filter(TodoItem.todo_type == type.strip().lower())
     return query.order_by(TodoItem.id.desc()).offset(skip).limit(limit).all()
+
+
+@router.get("/types")
+def list_types():
+    """Возвращает допустимые типы дел для выпадающего списка."""
+    return {"types": TODO_TYPES}
 
 
 @router.get("/classes")
@@ -99,13 +121,13 @@ def read_todo(todo_id: int, db: Session = Depends(get_db)):
 def update_todo(
     todo_id: int,
     text: Optional[str] = Form(None),
-    topic: Optional[str] = Form(None),
+    type: Optional[str] = Form(None),
     school_class: Optional[str] = Form(None),
     deadline: Optional[str] = Form(None),
     is_done: Optional[bool] = Form(None),
     db: Session = Depends(get_db),
 ):
-    """Обновляет дело (текст, тему, класс, дедлайн, статус выполнения)."""
+    """Обновляет дело (текст, тип, класс, дедлайн, статус выполнения)."""
     todo = db.query(TodoItem).filter(TodoItem.id == todo_id).first()
     if todo is None:
         raise HTTPException(status_code=404, detail="Дело не найдено")
@@ -113,8 +135,8 @@ def update_todo(
         if not text.strip():
             raise HTTPException(status_code=400, detail="Текст дела не может быть пустым")
         todo.text = text.strip()
-    if topic is not None:
-        todo.topic = topic.strip() or None
+    if type is not None:
+        todo.todo_type = _validate_type(type)
     if school_class is not None:
         todo.school_class = school_class.strip() or None
     if deadline is not None:
