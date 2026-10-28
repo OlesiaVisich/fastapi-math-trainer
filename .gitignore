@@ -1,4 +1,11 @@
+__pycache__/
+*.pyc
 *.log
-test.db
-server.log
+*.tmp
+*.db
+
+.venv/
+uploads/
 app/uploads/
+
+.venv

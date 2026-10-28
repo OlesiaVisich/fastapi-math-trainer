@@ -103,6 +103,11 @@ class LessonBase(BaseModel):
 
     topic: str
     lesson_type: Optional[str] = None
+    # ВАЖНО: аннотация через dt_module.date, а не через локальное имя `date`:
+    # поле с именем `date` затеняет импорт datetime.date при вычислении
+    # аннотаций класса (pydantic иначе получает NoneType и падает с ошибкой
+    # "Input should be None" на валидации ответа).
+    date: Optional[dt_module.date] = None
     description: Optional[str] = None
     school_class: Optional[str] = None
     homework: Optional[str] = None

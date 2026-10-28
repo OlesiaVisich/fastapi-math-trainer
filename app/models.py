@@ -1,5 +1,5 @@
 """Модели базы данных: User, Worksheet, Task, Lesson, TodoItem."""
-from datetime import datetime
+from datetime import date, datetime
 
 from sqlalchemy import (
     Boolean,
@@ -74,6 +74,7 @@ class Lesson(Base):
     id = Column(Integer, primary_key=True, index=True)
     topic = Column(String, nullable=False)
     lesson_type = Column(String, nullable=True, index=True)
+    date = Column(Date, nullable=True, index=True)  # дата проведения урока
     description = Column(Text, nullable=True)
     school_class = Column(String, nullable=True, index=True)
     homework = Column(Text, nullable=True)

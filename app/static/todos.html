@@ -231,6 +231,7 @@
     .cal-dot.t-proverit-rabotu { background: #e67e22; }
     .cal-dot.t-otvetit-na-pismo { background: #16a085; }
     .cal-dot.t-drugoe { background: #7f8c8d; }
+    .cal-dot.t-urok { background: #2fa36b; }
     .cal-dot.done { opacity: .35; }
     .cal-tooltip {
       position: fixed;
@@ -288,6 +289,7 @@
             <span><i class="cal-dot t-proverit-rabotu"></i>проверить работу</span>
             <span><i class="cal-dot t-otvetit-na-pismo"></i>ответить на письмо</span>
             <span><i class="cal-dot t-drugoe"></i>другое</span>
+            <span><i class="cal-dot t-urok"></i>урок</span>
           </div>
         </div>
       </aside>
@@ -341,6 +343,7 @@
     const overlay = document.getElementById('modal-overlay');
 
     let allTodos = [];
+    let allLessons = [];  // уроки с датами — отмечаются в календаре
     let calDate = new Date(); // текущая отображаемая дата (месяц)
 
     const TYPE_META = {
@@ -411,6 +414,11 @@
         return;
       }
       allTodos = await res.json();
+      // Подгружаем уроки с датами, чтобы отмечать их в календаре
+      try {
+        const lres = await fetch('/lessons/');
+        allLessons = lres.ok ? (await lres.json()).filter(l => l.date) : [];
+      } catch (e) { allLessons = []; }
       renderTodos();
       renderCalendar();
     }
@@ -513,6 +521,28 @@
       return map;
     }
 
+    // Специальные «пункты» для календаря: запланированные уроки
+    function calendarItemsByDate() {
+      const map = todosByDeadline();
+      for (const l of allLessons) {
+        const pseudo = {
+          __lesson: true,
+          text: l.topic,
+          school_class: l.school_class,
+          todo_type: 'урок',
+          lesson_type: l.lesson_type,
+          is_done: false,
+        };
+        (map[l.date] = map[l.date] || []).push(pseudo);
+      }
+      return map;
+    }
+
+    function itemMeta(item) {
+      if (item.__lesson) return { icon: '🎓', cls: 't-urok' };
+      return typeInfo(item.todo_type);
+    }
+
     function renderCalendar() {
       const year = calDate.getFullYear();
       const month = calDate.getMonth();
@@ -521,7 +551,7 @@
       const wdEl = document.getElementById('cal-weekdays');
       wdEl.innerHTML = WEEKDAYS.map(w => `<div class="cal-weekday">${w}</div>`).join('');
 
-      const byDate = todosByDeadline();
+      const byDate = calendarItemsByDate();
       const first = new Date(year, month, 1);
       const startOffset = (first.getDay() + 6) % 7; // Пн=0 ... Вс=6
       const start = new Date(year, month, 1 - startOffset);
@@ -534,7 +564,7 @@
         const items = byDate[iso] || [];
         const other = d.getMonth() !== month;
         const dots = items.slice(0, 4).map(t => {
-          const meta = typeInfo(t.todo_type);
+          const meta = itemMeta(t);
           return `<span class="cal-dot ${meta.cls} ${t.is_done ? 'done' : ''}"></span>`;
         }).join('');
         html += `<div class="cal-cell ${other ? 'other' : ''} ${iso === todayIso ? 'today' : ''} ${items.length ? 'has-dots' : ''}"
@@ -555,14 +585,14 @@
     const tipEl = document.getElementById('cal-tooltip');
 
     function showDayTip(ev, iso) {
-      const items = (todosByDeadline()[iso] || []);
+      const items = (calendarItemsByDate()[iso] || []);
       if (!items.length) { hideDayTip(); return; }
       const [y, m, d] = iso.split('-');
       const dateLabel = `${d} ${MONTHS[parseInt(m, 10) - 1]} ${y}`;
       tipEl.innerHTML = `<div class="tt-date">📅 ${dateLabel}</div>` +
         items.map(t => {
-          const meta = typeInfo(t.todo_type);
-          const clsPart = t.school_class ? ` · ${escapeHtml(t.school_class)}` : '';
+          const meta = itemMeta(t);
+          const clsPart = t.school_class ? ` · ${escapeHtml(t.school_class)} класс` : '';
           return `<div class="tt-item ${t.is_done ? 'tt-done' : ''}">${meta.icon} ${escapeHtml(t.text)}${clsPart}</div>`;
         }).join('');
       tipEl.style.display = 'block';

@@ -167,6 +167,9 @@
         <label style="display:block;font-size:14px;font-weight:600;margin:10px 0 4px;">Класс (параллель)</label>
         <input type="text" name="school_class" placeholder="Например: 8 или 9А"
                style="width:100%;padding:9px 11px;border:1px solid #dde4ec;border-radius:8px;font-size:14px;">
+        <label style="display:block;font-size:14px;font-weight:600;margin:10px 0 4px;">Дата урока</label>
+        <input type="date" name="date" min="2026-05-25" max="2027-08-31"
+               style="width:100%;padding:9px 11px;border:1px solid #dde4ec;border-radius:8px;font-size:14px;">
         <label style="display:block;font-size:14px;font-weight:600;margin:10px 0 4px;">Описание</label>
         <textarea name="description" placeholder="Текстовое описание урока"
                   style="width:100%;min-height:70px;padding:9px 11px;border:1px solid #dde4ec;border-radius:8px;font-size:14px;"></textarea>
@@ -202,6 +205,8 @@
         </select>
         <label for="l-class">Класс (параллель)</label>
         <input type="text" id="l-class" name="school_class" placeholder="Например: 8 или 9А">
+        <label for="l-date">Дата урока</label>
+        <input type="date" id="l-date" name="date" min="2026-05-25" max="2027-08-31">
         <label for="l-desc">Описание</label>
         <textarea id="l-desc" name="description" placeholder="Текстовое описание урока"></textarea>
         <label for="l-hw">Домашняя работа</label>
@@ -243,6 +248,12 @@
       return String(name).toLowerCase().endsWith('.pptx') ? '📊' : '📎';
     }
 
+    const MONTHS_RU = ['января','февраля','марта','апреля','мая','июня','июля','августа','сентября','октября','ноября','декабря'];
+    function formatLessonDate(iso) {
+      const [y, m, d] = String(iso).split('-');
+      return `${parseInt(d, 10)} ${MONTHS_RU[parseInt(m, 10) - 1]} ${y}`;
+    }
+
     function lessonCard(l, showClass) {
       const files = l.files || [];
       const links = files.length
@@ -254,7 +265,7 @@
             <div class="lesson-topic">${escapeHtml(l.topic)}</div>
             ${showClass ? `<div class="lesson-class">Класс: ${escapeHtml(l.school_class || '—')}</div>` : ''}
           </div>
-          ${l.lesson_type ? `<div class="lesson-type">${TYPE_ICONS[l.lesson_type] || '📚'} ${escapeHtml(l.lesson_type)}</div>` : ''}
+          ${l.lesson_type || l.date ? `<div class="lesson-type">${l.lesson_type ? `${TYPE_ICONS[l.lesson_type] || '📚'} ${escapeHtml(l.lesson_type)}` : ''}${l.date ? ` &nbsp;·&nbsp; 📅 ${formatLessonDate(l.date)}` : ''}</div>` : ''}
           ${l.description ? `<div class="lesson-desc">${escapeHtml(l.description)}</div>` : ''}
           ${l.homework ? `<div class="lesson-hw"><b>Домашняя работа:</b> ${escapeHtml(l.homework)}</div>` : ''}
           <div class="lesson-footer">
@@ -360,6 +371,7 @@
       const fd = new FormData();
       fd.append('topic', data.get('topic').trim());
       fd.append('lesson_type', data.get('lesson_type') || '');
+      fd.append('date', data.get('date') || '');
       fd.append('school_class', (data.get('school_class') || '').trim());
       fd.append('description', (data.get('description') || '').trim());
       fd.append('homework', (data.get('homework') || '').trim());

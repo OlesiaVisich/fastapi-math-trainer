@@ -113,6 +113,11 @@
           <input type="text" id="school_class" name="school_class" required placeholder="Например: 9">
         </div>
         <div class="form-row">
+          <label for="lesson_date">Дата урока</label>
+          <input type="date" id="lesson_date" name="date" min="2026-05-25" max="2027-08-31">
+          <span class="hint">Необязательно. В этом уроке можно выбрать любой день учебного года 2026/2027 (с 25.05.2026 по 31.08.2027). Запланированные уроки отмечены в календаре раздела «Список дел».</span>
+        </div>
+        <div class="form-row">
           <label for="description">Описание</label>
           <textarea id="description" name="description" placeholder="Краткое текстовое описание урока"></textarea>
         </div>

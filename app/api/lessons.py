@@ -2,6 +2,7 @@
 import os
 import re
 import uuid
+from datetime import date as dt_date
 from typing import List, Optional
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
@@ -51,6 +52,16 @@ def _validate_lesson_type(lesson_type: Optional[str]) -> Optional[str]:
     return value
 
 
+def _parse_date(value: Optional[str]) -> Optional[dt_date]:
+    """Преобразует строку формы в дату (пустая строка -> None)."""
+    if value is None or not value.strip():
+        return None
+    try:
+        return dt_date.fromisoformat(value.strip())
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Некорректная дата урока")
+
+
 def _save_file(file: UploadFile) -> dict:
     """Сохраняет файл урока (PDF или PPTX) на диск.
 
@@ -97,27 +108,29 @@ def list_lesson_types():
 def create_lesson(
     topic: str = Form(...),
     lesson_type: Optional[str] = Form(None),
+    date: Optional[str] = Form(None),
     description: Optional[str] = Form(None),
     school_class: Optional[str] = Form(None),
     homework: Optional[str] = Form(None),
-    tasks_pdf: Optional[UploadFile] = File(None),
     files: List[UploadFile] = File(default=[]),
+    tasks_pdf: Optional[UploadFile] = File(None),
     db: Session = Depends(get_db),
 ):
-    """Создаёт урок: тип, тема, описание, класс, домашняя работа, файлы (PDF/PPTX).
+    """Создаёт урок: тип, дата, тема, описание, класс, домашняя работа, файлы.
 
-    Можно передать несколько файлов через поле `files`; поле `tasks_pdf`
-    оставлено для обратной совместимости.
+    Можно передать несколько файлов через поле `files` (PDF и/или PPTX).
+    Поле `tasks_pdf` оставлено для обратной совместимости.
     """
     lesson = LessonModel(
         topic=topic.strip(),
         lesson_type=_validate_lesson_type(lesson_type),
+        date=_parse_date(date),
         description=(description or "").strip() or None,
         school_class=(school_class or "").strip() or None,
         homework=(homework or "").strip() or None,
     )
-    upload_list = [f for f in (files or []) if f and f.filename]
-    if tasks_pdf and tasks_pdf.filename:
+    upload_list = _collect_files(files)
+    if tasks_pdf and (getattr(tasks_pdf, "filename", "") or "").strip():
         upload_list.insert(0, tasks_pdf)
     _attach_files(lesson, upload_list)
     db.add(lesson)
@@ -126,15 +139,34 @@ def create_lesson(
     return lesson
 
 
+def _collect_files(files):
+    """Оставляет только реально выбранные файлы из списка загрузки.
+
+    Пустой выбор в <input type=file multiple> присылает один элемент с
+    пустым именем — его пропускаем, чтобы не отдавать ошибку 422.
+    """
+    result = []
+    for f in files or []:
+        if f is None:
+            continue
+        name = (getattr(f, "filename", "") or "").strip()
+        size = getattr(f, "size", None)
+        if not name and not size:
+            continue  # пустой выбор в <input type=file>
+        result.append(f)
+    return result
+
+
 @router.post("/create", include_in_schema=False)
 def create_lesson_form(
     topic: str = Form(""),
     lesson_type: Optional[str] = Form(None),
+    date: Optional[str] = Form(None),
     description: Optional[str] = Form(None),
     school_class: Optional[str] = Form(None),
     homework: Optional[str] = Form(None),
-    tasks_pdf: Optional[UploadFile] = File(None),
     files: List[UploadFile] = File(default=[]),
+    tasks_pdf: Optional[UploadFile] = File(None),
     db: Session = Depends(get_db),
 ):
     """Создание урока из обычной HTML-формы (работает без JavaScript).
@@ -146,12 +178,13 @@ def create_lesson_form(
     lesson = LessonModel(
         topic=topic.strip(),
         lesson_type=_validate_lesson_type(lesson_type),
+        date=_parse_date(date),
         description=(description or "").strip() or None,
         school_class=(school_class or "").strip() or None,
         homework=(homework or "").strip() or None,
     )
-    upload_list = [f for f in (files or []) if f and f.filename]
-    if tasks_pdf and tasks_pdf.filename:
+    upload_list = _collect_files(files)
+    if tasks_pdf and (getattr(tasks_pdf, "filename", "") or "").strip():
         upload_list.insert(0, tasks_pdf)
     _attach_files(lesson, upload_list)
     db.add(lesson)
