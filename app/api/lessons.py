@@ -5,7 +5,7 @@ import uuid
 from typing import List, Optional
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, RedirectResponse
 from sqlalchemy.orm import Session
 
 from app.config import settings
@@ -64,6 +64,34 @@ def create_lesson(
     db.commit()
     db.refresh(lesson)
     return lesson
+
+
+@router.post("/create", include_in_schema=False)
+def create_lesson_form(
+    topic: str = Form(""),
+    description: Optional[str] = Form(None),
+    school_class: Optional[str] = Form(None),
+    homework: Optional[str] = Form(None),
+    tasks_pdf: Optional[UploadFile] = File(None),
+    db: Session = Depends(get_db),
+):
+    """Создание урока из обычной HTML-формы (работает без JavaScript).
+
+    После создания перенаправляет обратно на страницу «Мои уроки».
+    """
+    if not topic.strip():
+        raise HTTPException(status_code=400, detail="Укажите тему урока")
+    lesson = LessonModel(
+        topic=topic.strip(),
+        description=(description or "").strip() or None,
+        school_class=(school_class or "").strip() or None,
+        homework=(homework or "").strip() or None,
+    )
+    if tasks_pdf and tasks_pdf.filename:
+        lesson.pdf_filename = _save_pdf(tasks_pdf)
+    db.add(lesson)
+    db.commit()
+    return RedirectResponse(url="/lessons-page", status_code=303)
 
 
 @router.get("/", response_model=List[Lesson])

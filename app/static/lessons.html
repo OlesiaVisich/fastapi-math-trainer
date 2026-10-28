@@ -144,7 +144,35 @@
   <main>
     <div id="message" class="message"></div>
     <h2>Мои уроки</h2>
-    <a class="btn-new" id="btn-new-lesson" href="/lessons-page?new=1" style="display:inline-block;text-decoration:none;color:inherit">+ Создать урок</a>
+    <!-- v2026-10-28-c -->
+    <button type="button" class="btn-new" id="btn-new-lesson">+ Создать урок</button>
+
+    <!-- Встроенная форма создания урока: работает даже при полностью отключённом JS (обычная POST-отправка) -->
+    <div id="lesson-form-area" style="display:none">
+      <form method="post" action="/lessons/create" enctype="multipart/form-data"
+            style="background:#fff;border:1px solid #dde4ec;border-radius:12px;padding:20px 22px;max-width:560px;margin-bottom:20px;">
+        <h3 style="font-size:18px;color:#2f5a88;margin-bottom:10px;">Новый урок</h3>
+        <label style="display:block;font-size:14px;font-weight:600;margin:10px 0 4px;">Тема *</label>
+        <input type="text" name="topic" required placeholder="Например: Квадратные уравнения"
+               style="width:100%;padding:9px 11px;border:1px solid #dde4ec;border-radius:8px;font-size:14px;">
+        <label style="display:block;font-size:14px;font-weight:600;margin:10px 0 4px;">Класс (параллель)</label>
+        <input type="text" name="school_class" placeholder="Например: 8 или 9А"
+               style="width:100%;padding:9px 11px;border:1px solid #dde4ec;border-radius:8px;font-size:14px;">
+        <label style="display:block;font-size:14px;font-weight:600;margin:10px 0 4px;">Описание</label>
+        <textarea name="description" placeholder="Текстовое описание урока"
+                  style="width:100%;min-height:70px;padding:9px 11px;border:1px solid #dde4ec;border-radius:8px;font-size:14px;"></textarea>
+        <label style="display:block;font-size:14px;font-weight:600;margin:10px 0 4px;">Домашняя работа</label>
+        <textarea name="homework" placeholder="Например: §14, №235–240"
+                  style="width:100%;min-height:70px;padding:9px 11px;border:1px solid #dde4ec;border-radius:8px;font-size:14px;"></textarea>
+        <label style="display:block;font-size:14px;font-weight:600;margin:10px 0 4px;">Файл с задачами (PDF)</label>
+        <input type="file" name="tasks_pdf" accept=".pdf,application/pdf">
+        <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:16px;">
+          <button type="button" id="alt-cancel" style="border:none;border-radius:8px;padding:10px 18px;font-size:14px;cursor:pointer;background:#eef2f7;color:#22303e;">Отмена</button>
+          <button type="submit" style="border:none;border-radius:8px;padding:10px 18px;font-size:14px;cursor:pointer;background:linear-gradient(135deg,#3b6ea5,#2fa36b);color:#fff;font-weight:600;">Создать урок</button>
+        </div>
+      </form>
+    </div>
+    <noscript><style>#lesson-form-area{display:block !important;} #overlay{display:none !important;}</style></noscript>
     <div id="lessons"><div class="empty">Загрузка…</div></div>
   </main>
 
@@ -271,13 +299,17 @@
     (function bindNewLessonBtn() {
       const btn = document.getElementById('btn-new-lesson');
       if (!btn) return;
-      btn.addEventListener('click', function (ev) {
-        ev.preventDefault();
+      btn.addEventListener('click', function () {
         openModal();
-        // убрать ?new=1 из адреса, чтобы перезагрузка страницы не открывала окно снова
-        history.replaceState(null, '', '/lessons-page');
       });
     })();
+
+    // Резервная кнопка внутри встроенной формы тоже открывает модалку
+    const altCancel = document.getElementById('alt-cancel');
+    if (altCancel) altCancel.addEventListener('click', function () {
+      document.getElementById('lesson-form-area').style.display = 'none';
+    });
+
     document.getElementById('btn-cancel').addEventListener('click', closeModal);
     overlay.addEventListener('click', (e) => { if (e.target === overlay) closeModal(); });
     document.addEventListener('keydown', (e) => {
