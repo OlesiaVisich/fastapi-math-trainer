@@ -61,23 +61,31 @@
       background: #fff;
       width: 100%;
       max-width: 794px; /* ~A4 при 96dpi */
-      min-height: 1000px;
+      /* фиксированный минимум = высота А4 при 96dpi (1123px): рамка не
+         зависит от количества заданий на странице */
+      min-height: 1123px;
       margin: 0 auto;
-      padding: 56px 64px;
+      padding: 72px 80px;
       box-shadow: 0 4px 18px rgba(0, 0, 0, .12);
-      border: 2px dashed transparent;
-      transition: border-color .15s ease, background .15s ease;
+      transition: background .15s ease;
       font-family: Georgia, "Times New Roman", serif;
     }
-    .sheet.drag-over { border: 2px dashed var(--primary) !important; background: #f2f8ff; }
-    /* ---------- Рамка страницы (по самому краю листа) ---------- */
-    .sheet.border-none     { border: none; }
-    .sheet.border-solid    { border: 1px solid var(--border-color, #555); border-radius: 0; }
-    .sheet.border-dashed   { border: 1px dashed var(--border-color, #555); border-radius: 0; }
-    .sheet.border-dotted   { border: 1px dotted var(--border-color, #555); border-radius: 0; }
-    .sheet.border-double   { border: 3px double var(--border-color, #555); border-radius: 0; }
-    .sheet.border-rounded  { border: 1px solid var(--border-color, #555); border-radius: 18px; }
-    .sheet.border-round-dash { border: 1px dashed var(--border-color, #555); border-radius: 18px; }
+    .sheet.drag-over { outline: 2px dashed var(--primary); outline-offset: -14px; background: #f2f8ff; }
+    /* ---------- Рамка страницы ----------
+       Рамка рисуется не на самом листе, а на псевдоэлементе ::after,
+       отодвинутом на фиксированные 16px от края. Минимальная высота
+       листа задана из расчёта полноценного А4, поэтому рамка всегда
+       одинаковая и не зависит от количества заданий. */
+    .sheet { position: relative; }
+    .sheet::after { content: ""; position: absolute; inset: 16px; pointer-events: none; }
+    .sheet.border-none     { }
+    .sheet.border-none::after     { border: none; }
+    .sheet.border-solid::after    { border: 1px solid var(--border-color, #555); border-radius: 0; }
+    .sheet.border-dashed::after   { border: 1px dashed var(--border-color, #555); border-radius: 0; }
+    .sheet.border-dotted::after   { border: 1px dotted var(--border-color, #555); border-radius: 0; }
+    .sheet.border-double::after   { border: 3px double var(--border-color, #555); border-radius: 0; }
+    .sheet.border-rounded::after  { border: 1px solid var(--border-color, #555); border-radius: 18px; }
+    .sheet.border-round-dash::after { border: 1px dashed var(--border-color, #555); border-radius: 18px; }
     /* ---------- Маркеры номеров заданий ---------- */
     .num-badge {
       display: inline-flex;
@@ -121,8 +129,10 @@
       border-radius: 6px;
     }
     .sheet-name-row.in-frame {
-      border-color: var(--border-color, #555);
+      border: 1px solid var(--name-border-color, #555);
     }
+    /* вариант со скруглёнными углами */
+    .sheet-name-row.in-frame.name-rounded { border-radius: 14px; }
     .sheet-name-input {
       border: none;
       border-bottom: 1px solid #999;
@@ -172,7 +182,9 @@
       font-family: "Segoe UI", Arial, sans-serif;
     }
     .points-input:focus { outline: 2px solid var(--primary); border-color: transparent; }
-    @media print { .points-input { border-color: transparent; } }
+    @media print { .points-input { border-color: transparent; width: 30px; } }
+    /* «б.» вплотную к числу баллов (без лишнего расстояния при печати) */
+    .item-points { display: inline-flex; align-items: baseline; gap: 3px; }
     .sheet-score-row {
       text-align: right;
       font-size: 15px;
@@ -475,16 +487,21 @@
       .layout { display: block; margin: 0; padding: 0; max-width: none; }
       .sheet-wrap { position: static; }
       .sheet { box-shadow: none; max-width: none; padding: 0; min-height: auto; border: none; }
-      /* рамка страницы при печати идёт по самому краю листа */
-      @page { margin: 8mm; }
-      .sheet.border-none     { border: none !important; }
-      .sheet.border-solid    { border: 1px solid var(--border-color, #555) !important; border-radius: 0; }
-      .sheet.border-dashed   { border: 1px dashed var(--border-color, #555) !important; border-radius: 0; }
-      .sheet.border-dotted   { border: 1px dotted var(--border-color, #555) !important; border-radius: 0; }
-      .sheet.border-double   { border: 3px double var(--border-color, #555) !important; border-radius: 0; }
-      .sheet.border-rounded  { border: 1px solid var(--border-color, #555) !important; border-radius: 18px; }
-      .sheet.border-round-dash { border: 1px dashed var(--border-color, #555) !important; border-radius: 18px; }
+      /* фиксированный размер листа при печати: А4 целиком, рамка не
+         зависит от количества заданий */
+      .sheet { width: 210mm; height: 297mm; overflow: hidden; position: relative; }
+      .sheet::after { inset: 6mm; }
+      @page { margin: 0; }
+      .sheet.border-none::after     { border: none !important; }
+      .sheet.border-solid::after    { border: 1px solid var(--border-color, #555) !important; border-radius: 0; }
+      .sheet.border-dashed::after   { border: 1px dashed var(--border-color, #555) !important; border-radius: 0; }
+      .sheet.border-dotted::after   { border: 1px dotted var(--border-color, #555) !important; border-radius: 0; }
+      .sheet.border-double::after   { border: 3px double var(--border-color, #555) !important; border-radius: 0; }
+      .sheet.border-rounded::after  { border: 1px solid var(--border-color, #555) !important; border-radius: 18px; }
+      .sheet.border-round-dash::after { border: 1px dashed var(--border-color, #555) !important; border-radius: 18px; }
       .sheet-title-input, .sheet-name-input { border: none; }
+      /* при печати число баллов и «б.» — вплотную */
+      .item-points { gap: 2px; }
     }
   </style>
   <script>
@@ -590,6 +607,9 @@
               <option value="#dddddd">Очень светлый серый</option>
             </select>
           </div>
+          <div class="hs-checks">
+            <label class="hs-check"><input type="checkbox" id="ds-name-frame" /> Рамка вокруг подписи ученика</label>
+          </div>
           <div class="hs-row">
             <span class="hs-label">Номера заданий:</span>
             <select class="hs-input" id="ds-num-shape" style="flex:0 0 auto; min-width: 240px;">
@@ -652,6 +672,7 @@
     /* ---------- Элементы дизайна листа ---------- */
     const borderSel = document.getElementById('ds-border');
     const borderColorSel = document.getElementById('ds-border-color');
+    const nameFrameChk = document.getElementById('ds-name-frame');
     const numShapeSel = document.getElementById('ds-num-shape');
     const numFillSel = document.getElementById('ds-num-fill');
     const BORDER_CLASSES = ['border-none', 'border-solid', 'border-dashed', 'border-dotted',
@@ -661,8 +682,12 @@
       sheetEl.classList.remove(...BORDER_CLASSES);
       sheetEl.classList.add('border-' + borderSel.value);
       sheetEl.style.setProperty('--border-color', borderColorSel.value);
-      // подпись ученика — в тонкой рамке в том же стиле/цвете (если включена)
-      nameRowEl.classList.toggle('in-frame', borderSel.value !== 'none');
+      // подпись ученика — отдельная галочка; цвет тот же, что у рамки страницы,
+      // углы скруглённые, если выбрана рамка со скруглением
+      nameRowEl.classList.toggle('in-frame', !!nameFrameChk.checked);
+      nameRowEl.classList.toggle('name-rounded',
+        borderSel.value === 'rounded' || borderSel.value === 'round-dash');
+      nameRowEl.style.setProperty('--name-border-color', borderColorSel.value);
     }
 
     // HTML маркера номера задания с учётом выбранных стиля и заливки
@@ -786,6 +811,7 @@
         grade: gradeChk.checked,
         border: borderSel.value,
         border_color: borderColorSel.value,
+        name_frame: nameFrameChk.checked,
         num_shape: numShapeSel.value,
         num_fill: numFillSel.value,
       }));
@@ -804,6 +830,7 @@
         gradeChk.checked = !!data.grade;
         if (data.border) borderSel.value = data.border;
         if (data.border_color) borderColorSel.value = data.border_color;
+        nameFrameChk.checked = !!data.name_frame;
         if (data.num_shape) numShapeSel.value = data.num_shape;
         if (typeof data.num_fill === 'string') numFillSel.value = data.num_fill;
       } catch (e) { /* ignore */ }
@@ -1333,6 +1360,7 @@
     pointsChk.addEventListener('change', () => { saveSheet(); renderSheet(); });
     gradeChk.addEventListener('change', () => { applyHeaderSettings(); saveSheet(); });
     borderSel.addEventListener('change', () => { applySheetDesign(); saveSheet(); renderSheet(); });
+    nameFrameChk.addEventListener('change', () => { applySheetDesign(); saveSheet(); });
     borderColorSel.addEventListener('change', () => { applySheetDesign(); saveSheet(); renderSheet(); });
     numShapeSel.addEventListener('change', () => { saveSheet(); renderSheet(); });
     numFillSel.addEventListener('change', () => { saveSheet(); renderSheet(); });
