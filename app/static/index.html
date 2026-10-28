@@ -39,6 +39,40 @@
     }
     nav a.active, nav a:hover { opacity: 1; font-weight: 600; }
     main { max-width: 960px; margin: 24px auto; padding: 0 16px; }
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 24px;
+      box-shadow: 0 1px 3px rgba(0,0,0,.06);
+    }
+    .card h2 { font-size: 18px; margin-bottom: 16px; color: var(--primary-dark); }
+    .form-row { display: flex; flex-direction: column; gap: 4px; margin-bottom: 14px; }
+    .form-row label { font-size: 14px; font-weight: 600; color: var(--text); }
+    .form-row input[type="text"],
+    .form-row textarea {
+      padding: 8px 10px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      font-size: 14px;
+      font-family: inherit;
+      background: #fff;
+    }
+    .form-row textarea { min-height: 70px; resize: vertical; }
+    .form-row input[type="file"] { font-size: 13px; }
+    .hint { font-size: 12px; color: var(--muted); }
+    button[type="submit"] {
+      background: var(--primary);
+      color: #fff;
+      border: none;
+      border-radius: 6px;
+      padding: 10px 22px;
+      font-size: 15px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    button[type="submit"]:hover { background: var(--primary-dark); }
+    .error { color: var(--danger); font-size: 14px; margin-bottom: 12px; display: none; }
   </style>
 </head>
 <body>
@@ -54,7 +88,55 @@
   </header>
 
   <main>
-    <!-- Главная страница пока пустая: контент будет добавлен позже -->
+    <div class="card">
+      <h2>➕ Создать урок</h2>
+      <p class="error" id="err"></p>
+      <!-- Обычная HTML-форма: работает без JavaScript, POST сразу на сервер -->
+      <form id="lesson-form" action="/lessons/create" method="post" enctype="multipart/form-data">
+        <div class="form-row">
+          <label for="topic">Тема урока *</label>
+          <input type="text" id="topic" name="topic" required placeholder="Например: Квадратные уравнения">
+        </div>
+        <div class="form-row">
+          <label for="school_class">Класс (параллель) *</label>
+          <input type="text" id="school_class" name="school_class" required placeholder="Например: 9">
+        </div>
+        <div class="form-row">
+          <label for="description">Описание</label>
+          <textarea id="description" name="description" placeholder="Краткое текстовое описание урока"></textarea>
+        </div>
+        <div class="form-row">
+          <label for="homework">Домашняя работа</label>
+          <textarea id="homework" name="homework" placeholder="Номера упражнений, параграфы..."></textarea>
+        </div>
+        <div class="form-row">
+          <label for="tasks_pdf">Файл с задачами (PDF)</label>
+          <input type="file" id="tasks_pdf" name="tasks_pdf" accept=".pdf,application/pdf">
+          <span class="hint">Необязательно. Только формат PDF.</span>
+        </div>
+        <button type="submit">Создать урок</button>
+      </form>
+    </div>
   </main>
+
+  <script>
+    // Если модалка «Мои уроки» не открылась и пользователя перекинуло сюда —
+    // автоматически возвращаем его на страницу уроков с открытой формой создания.
+    if (window.location.search.indexOf("new=1") !== -1) {
+      window.location.href = "/lessons-page?new=1";
+    }
+    // Клиентская валидация: не даём отправить пустую тему
+    document.getElementById("lesson-form").addEventListener("submit", function (e) {
+      var topic = document.getElementById("topic").value.trim();
+      var err = document.getElementById("err");
+      if (!topic) {
+        e.preventDefault();
+        err.textContent = "Укажите тему урока.";
+        err.style.display = "block";
+      } else {
+        err.style.display = "none";
+      }
+    });
+  </script>
 </body>
 </html>
