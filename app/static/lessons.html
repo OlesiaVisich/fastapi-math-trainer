@@ -176,8 +176,10 @@
         <label style="display:block;font-size:14px;font-weight:600;margin:10px 0 4px;">Домашняя работа</label>
         <textarea name="homework" placeholder="Например: §14, №235–240"
                   style="width:100%;min-height:70px;padding:9px 11px;border:1px solid #dde4ec;border-radius:8px;font-size:14px;"></textarea>
-        <label style="display:block;font-size:14px;font-weight:600;margin:10px 0 4px;">Файлы к уроку (PDF, PPTX; можно несколько)</label>
-        <input type="file" name="files" multiple accept=".pdf,.pptx,application/pdf,application/vnd.openxmlformats-officedocument.presentationml.presentation">
+        <label style="display:block;font-size:14px;font-weight:600;margin:10px 0 4px;">Файл основной (PDF или PPTX)</label>
+        <input type="file" name="main_file" accept=".pdf,.pptx,application/pdf,application/vnd.openxmlformats-officedocument.presentationml.presentation">
+        <label style="display:block;font-size:14px;font-weight:600;margin:10px 0 4px;">Ключи для проверки (PDF)</label>
+        <input type="file" name="keys_file" accept=".pdf,application/pdf">
         <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:16px;">
           <button type="button" id="alt-cancel" style="border:none;border-radius:8px;padding:10px 18px;font-size:14px;cursor:pointer;background:#eef2f7;color:#22303e;">Отмена</button>
           <button type="submit" style="border:none;border-radius:8px;padding:10px 18px;font-size:14px;cursor:pointer;background:linear-gradient(135deg,#3b6ea5,#2fa36b);color:#fff;font-weight:600;">Создать урок</button>
@@ -211,8 +213,12 @@
         <textarea id="l-desc" name="description" placeholder="Текстовое описание урока"></textarea>
         <label for="l-hw">Домашняя работа</label>
         <textarea id="l-hw" name="homework" placeholder="Например: §14, №235–240"></textarea>
-        <label for="l-files">Файлы к уроку (PDF, PPTX; можно несколько)</label>
-        <input type="file" id="l-files" name="files" multiple accept=".pdf,.pptx,application/pdf,application/vnd.openxmlformats-officedocument.presentationml.presentation">
+        <label for="l-main-file" id="l-main-label">Файл основной (PDF или PPTX)</label>
+        <input type="file" id="l-main-file" name="main_file" accept=".pdf,.pptx,application/pdf,application/vnd.openxmlformats-officedocument.presentationml.presentation">
+        <div id="l-keys-row">
+          <label for="l-keys-file">Ключи для проверки (PDF)</label>
+          <input type="file" id="l-keys-file" name="keys_file" accept=".pdf,application/pdf">
+        </div>
         <div class="modal-actions">
           <button type="button" class="btn-cancel" id="btn-cancel">Отмена</button>
           <button type="submit" class="btn-save">Создать урок</button>
@@ -254,10 +260,12 @@
       return `${parseInt(d, 10)} ${MONTHS_RU[parseInt(m, 10) - 1]} ${y}`;
     }
 
+    const ROLE_ICONS = { main: '📌', keys: '🔑', other: '' };
+
     function lessonCard(l, showClass) {
       const files = l.files || [];
       const links = files.length
-        ? files.map(f => `<a href="/lessons/${l.id}/files/${f.id}" download>${fileIcon(f.original_name)} ${escapeHtml(f.original_name)}</a>`).join(' ')
+        ? files.map(f => `<a href="/lessons/${l.id}/files/${f.id}" download title="${f.role === 'keys' ? 'Ключи для проверки' : f.role === 'main' ? 'Основной файл урока' : 'Файл урока'}">${ROLE_ICONS[f.role] || ''}${fileIcon(f.original_name)} ${escapeHtml(f.original_name)}</a>`).join(' ')
         : '<span class="pdf-none">Файлы к уроку не прикреплены</span>';
       return `
         <div class="lesson">
@@ -358,14 +366,34 @@
       if (e.key === 'Escape' && overlay.classList.contains('open')) closeModal();
     });
 
+    // Подписи поля основного файла по типу урока; для презентации ключей нет
+    const MODAL_MAIN_LABELS = {
+      'урок с презентацией': 'Презентация *',
+      'урок с листочком': 'Листочек с заданиями *',
+      'практическая/самостоятельная работа': 'Текст работы *',
+      'контрольная работа': 'Контрольная работа *',
+    };
+    function updateModalFileLabels() {
+      const t = document.getElementById('l-type').value;
+      const lbl = document.getElementById('l-main-label');
+      lbl.textContent = (MODAL_MAIN_LABELS[t] || 'Файл основной') + ' (PDF или PPTX)';
+      const keysRow = document.getElementById('l-keys-row');
+      keysRow.style.display = (t === 'урок с презентацией') ? 'none' : '';
+    }
+    document.getElementById('l-type').addEventListener('change', updateModalFileLabels);
+
     lessonForm.addEventListener('submit', async (e) => {
       e.preventDefault();
       const data = new FormData(lessonForm);
       if (!data.get('topic').trim()) { showMessage('Укажите тему урока', false); return; }
-      const files = data.getAll('files').filter(f => f && f.name);
-      const badExt = files.find(f => !/\.(pdf|pptx)$/i.test(f.name));
-      if (badExt) {
-        showMessage(`Файл «${badExt.name}»: допустимы только PDF и PPTX`, false);
+      const mainFile = data.get('main_file');
+      const keysFile = data.get('keys_file');
+      if (mainFile && mainFile.name && !/\.(pdf|pptx)$/i.test(mainFile.name)) {
+        showMessage(`Файл «${mainFile.name}»: допустимы только PDF и PPTX`, false);
+        return;
+      }
+      if (keysFile && keysFile.name && !/\.pdf$/i.test(keysFile.name)) {
+        showMessage('Ключи для проверки: допустим только формат PDF', false);
         return;
       }
       const fd = new FormData();
@@ -375,7 +403,8 @@
       fd.append('school_class', (data.get('school_class') || '').trim());
       fd.append('description', (data.get('description') || '').trim());
       fd.append('homework', (data.get('homework') || '').trim());
-      for (const f of files) fd.append('files', f);
+      if (mainFile && mainFile.name) fd.append('main_file', mainFile);
+      if (keysFile && keysFile.name) fd.append('keys_file', keysFile);
 
       const res = await fetch('/lessons/', { method: 'POST', body: fd });
       if (res.ok) {

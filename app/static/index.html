@@ -126,9 +126,14 @@
           <textarea id="homework" name="homework" placeholder="Номера упражнений, параграфы..."></textarea>
         </div>
         <div class="form-row">
-          <label for="files">Файлы к уроку</label>
-          <input type="file" id="files" name="files" multiple accept=".pdf,.pptx,application/pdf,application/vnd.openxmlformats-officedocument.presentationml.presentation">
-          <span class="hint">Необязательно. Можно выбрать несколько файлов форматов PDF и PPTX.</span>
+          <label for="main_file">Файл основной *</label>
+          <input type="file" id="main_file" name="main_file" accept=".pdf,.pptx,application/pdf,application/vnd.openxmlformats-officedocument.presentationml.presentation">
+          <span class="hint" id="main-file-hint">Необязательно. Форматы: PDF и PPTX.</span>
+        </div>
+        <div class="form-row" id="keys-row">
+          <label for="keys_file">Ключи для проверки</label>
+          <input type="file" id="keys_file" name="keys_file" accept=".pdf,application/pdf">
+          <span class="hint">Необязательно. Формат: PDF.</span>
         </div>
         <button type="submit">Создать урок</button>
       </form>
@@ -141,6 +146,26 @@
     if (window.location.search.indexOf("new=1") !== -1) {
       window.location.href = "/lessons-page?new=1";
     }
+    // Динамические подписи полей файлов в зависимости от типа урока
+    var MAIN_LABELS = {
+      "урок с презентацией": "Презентация",
+      "урок с листочком": "Листочек с заданиями",
+      "практическая/самостоятельная работа": "Текст работы",
+      "контрольная работа": "Контрольная работа"
+    };
+    function updateFileLabels() {
+      var t = document.getElementById("lesson_type").value;
+      var lbl = document.querySelector("label[for='main_file']");
+      var keysRow = document.getElementById("keys-row");
+      if (MAIN_LABELS[t]) {
+        lbl.textContent = MAIN_LABELS[t] + " *";
+      } else {
+        lbl.textContent = "Файл основной";
+      }
+      keysRow.style.display = (t === "урок с презентацией") ? "none" : "";
+    }
+    document.getElementById("lesson_type").addEventListener("change", updateFileLabels);
+    updateFileLabels();
     // Клиентская валидация: не даём отправить пустую тему
     document.getElementById("lesson-form").addEventListener("submit", function (e) {
       var topic = document.getElementById("topic").value.trim();

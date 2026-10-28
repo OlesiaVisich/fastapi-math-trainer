@@ -119,6 +119,7 @@ class LessonFileOut(BaseModel):
     id: int
     original_name: str
     content_type: Optional[str] = None
+    role: Optional[str] = "other"
 
     class Config:
         """Конфигурация модели."""

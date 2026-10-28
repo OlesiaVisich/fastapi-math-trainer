@@ -56,7 +56,12 @@ LESSON_TYPES = [
 
 
 class LessonFile(Base):
-    """Файл, прикреплённый к уроку (PDF или PPTX)."""
+    """Файл, прикреплённый к уроку (PDF или PPTX).
+
+    role: main — основной файл урока (презентация / листочек / работа / контрольная),
+          keys — ключи для проверки,
+          other — прочие файлы.
+    """
 
     __tablename__ = "lesson_files"
     id = Column(Integer, primary_key=True, index=True)
@@ -64,6 +69,7 @@ class LessonFile(Base):
     stored_name = Column(String, nullable=False)
     original_name = Column(String, nullable=False)
     content_type = Column(String, nullable=True)
+    role = Column(String, nullable=True, default="other")
     created_at = Column(DateTime, default=datetime.utcnow)
 
 

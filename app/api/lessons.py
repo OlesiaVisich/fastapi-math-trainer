@@ -86,16 +86,35 @@ def _save_file(file: UploadFile) -> dict:
     }
 
 
-def _attach_files(lesson: LessonModel, files: List[UploadFile]):
-    """Сохраняет переданные файлы и привязывает их к уроку."""
+def _attach_files(lesson: LessonModel, files: List[UploadFile], role: str = "other"):
+    """Сохраняет переданные файлы и привязывает их к уроку с указанной ролью.
+
+    role: main — основной файл урока, keys — ключи проверки, other — прочие.
+    """
     for file in files or []:
         if not file or not file.filename:
             continue
         data = _save_file(file)
+        data["role"] = role
         lesson.files.append(LessonFile(**data))
         # Совместимость со старым полем: первый PDF дублируется в pdf_filename
         if not lesson.pdf_filename and data["stored_name"].lower().endswith(".pdf"):
             lesson.pdf_filename = data["stored_name"]
+
+
+def _attach_named(lesson: LessonModel, file: Optional[UploadFile], role: str):
+    """Привязывает один именованный файл (например, презентацию или ключи)."""
+    if file is None:
+        return
+    name = (getattr(file, "filename", "") or "").strip()
+    size = getattr(file, "size", None)
+    if not name and not size:
+        return  # пустой выбор в <input type=file>
+    data = _save_file(file)
+    data["role"] = role
+    lesson.files.append(LessonFile(**data))
+    if not lesson.pdf_filename and data["stored_name"].lower().endswith(".pdf"):
+        lesson.pdf_filename = data["stored_name"]
 
 
 @router.get("/types")
@@ -112,14 +131,18 @@ def create_lesson(
     description: Optional[str] = Form(None),
     school_class: Optional[str] = Form(None),
     homework: Optional[str] = Form(None),
+    main_file: Optional[UploadFile] = File(None),
+    keys_file: Optional[UploadFile] = File(None),
     files: List[UploadFile] = File(default=[]),
     tasks_pdf: Optional[UploadFile] = File(None),
     db: Session = Depends(get_db),
 ):
     """Создаёт урок: тип, дата, тема, описание, класс, домашняя работа, файлы.
 
-    Можно передать несколько файлов через поле `files` (PDF и/или PPTX).
-    Поле `tasks_pdf` оставлено для обратной совместимости.
+    Отдельные поля загрузки в зависимости от типа урока:
+    main_file — основной файл (презентация / листочек / работа / контрольная),
+    keys_file — ключи для проверки.
+    Поля `files` и `tasks_pdf` оставлены для обратной совместимости.
     """
     lesson = LessonModel(
         topic=topic.strip(),
@@ -129,10 +152,12 @@ def create_lesson(
         school_class=(school_class or "").strip() or None,
         homework=(homework or "").strip() or None,
     )
+    _attach_named(lesson, main_file, "main")
+    _attach_named(lesson, keys_file, "keys")
     upload_list = _collect_files(files)
     if tasks_pdf and (getattr(tasks_pdf, "filename", "") or "").strip():
         upload_list.insert(0, tasks_pdf)
-    _attach_files(lesson, upload_list)
+    _attach_files(lesson, upload_list, "other")
     db.add(lesson)
     db.commit()
     db.refresh(lesson)
@@ -165,6 +190,8 @@ def create_lesson_form(
     description: Optional[str] = Form(None),
     school_class: Optional[str] = Form(None),
     homework: Optional[str] = Form(None),
+    main_file: Optional[UploadFile] = File(None),
+    keys_file: Optional[UploadFile] = File(None),
     files: List[UploadFile] = File(default=[]),
     tasks_pdf: Optional[UploadFile] = File(None),
     db: Session = Depends(get_db),
@@ -183,10 +210,12 @@ def create_lesson_form(
         school_class=(school_class or "").strip() or None,
         homework=(homework or "").strip() or None,
     )
+    _attach_named(lesson, main_file, "main")
+    _attach_named(lesson, keys_file, "keys")
     upload_list = _collect_files(files)
     if tasks_pdf and (getattr(tasks_pdf, "filename", "") or "").strip():
         upload_list.insert(0, tasks_pdf)
-    _attach_files(lesson, upload_list)
+    _attach_files(lesson, upload_list, "other")
     db.add(lesson)
     db.commit()
     return RedirectResponse(url="/lessons-page", status_code=303)
@@ -245,6 +274,7 @@ def list_lesson_files(lesson_id: int, db: Session = Depends(get_db)):
                 "id": f.id,
                 "name": f.original_name,
                 "content_type": f.content_type,
+                "role": f.role or "other",
             }
             for f in lesson.files
         ]
