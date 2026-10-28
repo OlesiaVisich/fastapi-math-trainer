@@ -1,4 +1,5 @@
 """Эндпоинты раздела «Задания»: создание, список, удаление, группы аналогов."""
+import re
 from typing import List, Optional
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile
@@ -57,10 +58,21 @@ def _split_variants(raw: str) -> List[str]:
 
     Каждый непустой блок текста (строки, разделённые пустой строкой) —
     отдельный вариант. Обрамляющие $$...$$ сохраняются как есть.
+    Внутри варианта переносы строк заменяются на пробелы: LaTeX-код
+    сворачивается в одну строку, чтобы при рендере на листе текст не
+    «уезжал» под номер задания.
     """
     text = raw.replace("\r\n", "\n").replace("\r", "\n")
     blocks = [b.strip() for b in text.split("\n\n")]
-    return [b for b in blocks if b]
+    cleaned = []
+    for b in blocks:
+        if not b:
+            continue
+        # схлопываем переносы строк внутри варианта в один пробел
+        b = re.sub(r"\s*\n\s*", " ", b).strip()
+        if b:
+            cleaned.append(b)
+    return cleaned
 
 
 @router.post("/", response_model=List[AssignmentSchema])

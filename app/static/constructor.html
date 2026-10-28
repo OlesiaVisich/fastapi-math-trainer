@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Кабинет учителя — Конструктор работ</title>
+  <title>Кабинет учителя — Конструктор работ — v2026-10-28-f</title>
   <style>
     :root {
       --primary: #3b6ea5;
@@ -1144,8 +1144,11 @@
     const FONT_SIZES = [10, 12, 14, 16, 18, 20, 24];
 
     function defaultHtml(t) {
-      return escapeHtml(t.latex_code || '')
-        .split(/\r?\n/).map(line => line ? `<p>${line}</p>` : '<p>&nbsp;</p>').join('');
+      // Переносы строк внутри LaTeX-кода схлопываются в пробелы:
+      // иначе текст задания «уезжает» на строку ниже номера.
+      return escapeHtml((t.latex_code || '').replace(/\r?\n/g, ' ').trim())
+        .split(/\s{2,}/).filter(Boolean)
+        .map(line => `<p>${line}</p>`).join('') || '<p>&nbsp;</p>';
     }
 
     function buildToolbar(idx) {
