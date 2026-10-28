@@ -213,7 +213,7 @@
       }
       const lessons = await res.json();
       if (!lessons.length) {
-        lessonsEl.innerHTML = '<div class="empty">Пока нет ни одного урока. <a href="/" style="color:var(--primary)">Создайте первый</a>.</div>';
+        lessonsEl.innerHTML = '<div class="empty">Пока нет ни одного урока. Нажмите «+ Создать урок», чтобы добавить первый.</div>';
         return;
       }
 
