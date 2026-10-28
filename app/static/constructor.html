@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Кабинет учителя — Конструктор работ — v2026-10-28-h</title>
+  <title>Кабинет учителя — Конструктор работ — v2026-10-28-i</title>
   <style>
     :root {
       --primary: #3b6ea5;
@@ -261,7 +261,12 @@
     .sheet-item.item-inline { display: flex; align-items: baseline; gap: 8px; padding-right: 32px; }
     .sheet-item.item-inline .item-head { margin-bottom: 0; flex-shrink: 0; }
     .sheet-item.item-inline .item-body { flex: 1; min-width: 0; }
-    .item-body.inline p { display: inline; margin: 0; white-space: normal; }
+    /* Текст задания может содержать переносы строк (несколько строк
+       условий/подпунктов). Первая строка стоит сразу правее номера, а
+       последующие заворачиваются с «висячим» отступом на уровень текста,
+       т.е. никогда не оказываются под номером задания. */
+    .item-body.inline p { margin: 0; white-space: normal; }
+    .item-body.inline p + p { margin-top: 2px; }
     .item-body.inline mjx-container[display="true"] { display: inline-block !important; margin: 0 4px !important; text-align: left; }
     .item-num { font-weight: 700; }
     .item-topic { font-weight: 700; }
@@ -1152,14 +1157,15 @@
     const FONT_SIZES = [10, 12, 14, 16, 18, 20, 24];
 
     function defaultHtml(t) {
-      // Переносы строк внутри LaTeX-кода схлопываются в пробелы, а весь код
-      // одной версии задания выводится ОДНИМ абзацем: номер задания и текст
-      // всегда стоят на одной строке («1) Решите уравнение»), текст не
-      // переносится под номер. Разделение на варианты (пустая строка при
-      // добавлении) происходит раньше — на сервере, поэтому здесь каждый
-      // latex_code содержит ровно один вариант.
-      const oneLine = (t.latex_code || '').replace(/\r?\n/g, ' ').replace(/\s+/g, ' ').trim();
-      return oneLine ? `<p>${escapeHtml(oneLine)}</p>` : '<p>&nbsp;</p>';
+      // Переносы строк ВНУТРИ задания сохраняются: каждая строка latex_code
+      // выводится отдельным абзацем. Первая строка стоит сразу правее
+      // номера (flex-раскладка item-inline), последующие — на уровне текста,
+      // под номером текст не появляется. Разделение вариантов (пустая
+      // строка при добавлении) происходит на сервере.
+      const lines = (t.latex_code || '').split(/\r?\n/);
+      return lines.length
+        ? lines.map(l => l.trim() ? `<p>${escapeHtml(l)}</p>` : '<p>&nbsp;</p>').join('')
+        : '<p>&nbsp;</p>';
     }
 
     function buildToolbar(idx) {
