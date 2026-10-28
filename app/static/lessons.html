@@ -88,6 +88,19 @@
       margin-left: auto;
     }
     .btn-del:hover { background: var(--danger); color: #fff; }
+    .btn-edit {
+      background: transparent;
+      color: var(--primary);
+      border: 1px solid var(--primary);
+      border-radius: 6px;
+      padding: 4px 12px;
+      font-size: 13px;
+      cursor: pointer;
+      margin-top: 0;
+      margin-left: auto;
+    }
+    .btn-edit:hover { background: var(--primary); color: #fff; }
+    .btn-edit + .btn-del { margin-left: 0; }
     .empty { color: var(--muted); font-size: 15px; padding: 8px 0; }
     .message { padding: 10px 14px; border-radius: 6px; margin-bottom: 14px; font-size: 14px; display: none; }
     .message.ok { display: block; background: #e6f4ea; color: #1e7e34; }
@@ -193,8 +206,9 @@
   <!-- Всплывающее окно создания урока -->
   <div class="overlay" id="overlay">
     <div class="modal">
-      <h3>Новый урок</h3>
+      <h3 id="modal-title">Новый урок</h3>
       <form id="lesson-form">
+        <input type="hidden" id="l-edit-id" value="">
         <label for="l-topic">Тема *</label>
         <input type="text" id="l-topic" name="topic" required placeholder="Например: Квадратные уравнения">
         <label for="l-type">Тип урока</label>
@@ -219,9 +233,10 @@
           <label for="l-keys-file">Ключи для проверки (PDF)</label>
           <input type="file" id="l-keys-file" name="keys_file" accept=".pdf,application/pdf">
         </div>
+        <div id="l-current-files" style="display:none;font-size:13px;color:#5a6b7f;margin-top:10px;"></div>
         <div class="modal-actions">
           <button type="button" class="btn-cancel" id="btn-cancel">Отмена</button>
-          <button type="submit" class="btn-save">Создать урок</button>
+          <button type="submit" class="btn-save" id="btn-save">Создать урок</button>
         </div>
       </form>
     </div>
@@ -278,6 +293,7 @@
           ${l.homework ? `<div class="lesson-hw"><b>Домашняя работа:</b> ${escapeHtml(l.homework)}</div>` : ''}
           <div class="lesson-footer">
             ${links}
+            <button class="btn-edit" onclick="editLesson(${l.id})">✏️ Редактировать</button>
             <button class="btn-del" onclick="deleteLesson(${l.id})">Удалить</button>
           </div>
         </div>`;
@@ -346,10 +362,59 @@
       overlay.classList.remove('open');
     }
 
+    /* ---------- Режим редактирования урока ---------- */
+    let lessonsCache = [];
+
+    function resetModalMode() {
+      document.getElementById('modal-title').textContent = 'Новый урок';
+      document.getElementById('btn-save').textContent = 'Создать урок';
+      document.getElementById('l-edit-id').value = '';
+      document.getElementById('l-current-files').style.display = 'none';
+      document.getElementById('l-current-files').innerHTML = '';
+    }
+
+    async function editLesson(id) {
+      const res = await fetch('/lessons/');
+      if (!res.ok) { showMessage('Не удалось загрузить урок', false); return; }
+      lessonsCache = await res.json();
+      const l = lessonsCache.find(x => x.id === id);
+      if (!l) { showMessage('Урок не найден', false); return; }
+
+      lessonForm.reset();
+      document.getElementById('l-edit-id').value = l.id;
+      document.getElementById('modal-title').textContent = 'Редактирование урока';
+      document.getElementById('btn-save').textContent = 'Сохранить изменения';
+      document.getElementById('l-topic').value = l.topic || '';
+      document.getElementById('l-type').value = l.lesson_type || '';
+      document.getElementById('l-class').value = l.school_class || '';
+      document.getElementById('l-date').value = l.date || '';
+      document.getElementById('l-desc').value = l.description || '';
+      document.getElementById('l-hw').value = l.homework || '';
+      updateModalFileLabels();
+
+      // Показать текущие прикреплённые файлы
+      const cur = document.getElementById('l-current-files');
+      const files = l.files || [];
+      if (files.length) {
+        cur.innerHTML = '<b>Прикреплено сейчас:</b><br>' + files.map(f => {
+          const roleLabel = f.role === 'keys' ? '🔑 ключи' : f.role === 'main' ? '📌 основной' : 'файл';
+          return `${roleLabel}: ${escapeHtml(f.original_name)}`;
+        }).join('<br>') +
+        '<br><i>Чтобы заменить файл, выберите новый в соответствующем поле. Без выбора файл останется прежним.</i>';
+        cur.style.display = 'block';
+      } else {
+        cur.style.display = 'none';
+      }
+      openModal();
+    }
+
     (function bindNewLessonBtn() {
       const btn = document.getElementById('btn-new-lesson');
       if (!btn) return;
       btn.addEventListener('click', function () {
+        lessonForm.reset();
+        resetModalMode();
+        updateModalFileLabels();
         openModal();
       });
     })();
@@ -406,14 +471,18 @@
       if (mainFile && mainFile.name) fd.append('main_file', mainFile);
       if (keysFile && keysFile.name) fd.append('keys_file', keysFile);
 
-      const res = await fetch('/lessons/', { method: 'POST', body: fd });
+      const editId = document.getElementById('l-edit-id').value;
+      const url = editId ? '/lessons/' + editId : '/lessons/';
+      const method = editId ? 'PUT' : 'POST';
+      const res = await fetch(url, { method, body: fd });
       if (res.ok) {
-        showMessage('Урок создан', true);
+        showMessage(editId ? 'Изменения сохранены' : 'Урок создан', true);
         lessonForm.reset();
+        resetModalMode();
         closeModal();
         loadLessons();
       } else {
-        let msg = 'Не удалось создать урок';
+        let msg = editId ? 'Не удалось сохранить изменения' : 'Не удалось создать урок';
         try {
           const err = await res.json();
           if (typeof err.detail === 'string') msg = err.detail;

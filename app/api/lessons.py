@@ -253,6 +253,69 @@ def list_classes(db: Session = Depends(get_db)):
     return {"classes": sorted(r[0] for r in rows)}
 
 
+@router.put("/{lesson_id}", response_model=Lesson)
+def update_lesson(
+    lesson_id: int,
+    topic: str = Form(...),
+    lesson_type: Optional[str] = Form(None),
+    date: Optional[str] = Form(None),
+    description: Optional[str] = Form(None),
+    school_class: Optional[str] = Form(None),
+    homework: Optional[str] = Form(None),
+    main_file: Optional[UploadFile] = File(None),
+    keys_file: Optional[UploadFile] = File(None),
+    files: List[UploadFile] = File(default=[]),
+    tasks_pdf: Optional[UploadFile] = File(None),
+    db: Session = Depends(get_db),
+):
+    """Обновляет урок: поля формы и (опционально) файлы.
+
+    Файлы заменяются только если выбран новый файл соответствующего поля:
+    main_file заменяет основной файл, keys_file — ключи проверки.
+    Если файл не выбран, старые файлы остаются без изменений.
+    """
+    lesson = db.query(LessonModel).filter(LessonModel.id == lesson_id).first()
+    if not lesson:
+        raise HTTPException(status_code=404, detail="Урок не найден")
+    if not topic.strip():
+        raise HTTPException(status_code=400, detail="Укажите тему урока")
+
+    lesson.topic = topic.strip()
+    lesson.lesson_type = _validate_lesson_type(lesson_type)
+    lesson.date = _parse_date(date)
+    lesson.description = (description or "").strip() or None
+    lesson.school_class = (school_class or "").strip() or None
+    lesson.homework = (homework or "").strip() or None
+
+    def _file_selected(f):
+        return f is not None and (
+            (getattr(f, "filename", "") or "").strip()
+            or getattr(f, "size", None)
+        )
+
+    # Замена основного файла: удаляем старые main, добавляем новый
+    if _file_selected(main_file):
+        for old in list(lesson.files):
+            if old.role == "main":
+                lesson.files.remove(old)
+        _attach_named(lesson, main_file, "main")
+    # Замена ключей проверки
+    if _file_selected(keys_file):
+        for old in list(lesson.files):
+            if old.role == "keys":
+                lesson.files.remove(old)
+        _attach_named(lesson, keys_file, "keys")
+    # Дополнительные файлы (обратная совместимость со старым полем files)
+    upload_list = _collect_files(files)
+    if tasks_pdf and (getattr(tasks_pdf, "filename", "") or "").strip():
+        upload_list.insert(0, tasks_pdf)
+    _attach_files(lesson, upload_list, "other")
+
+    db.commit()
+    db.refresh(lesson)
+    return lesson
+
+
 @router.get("/{lesson_id}", response_model=Lesson)
 def read_lesson(lesson_id: int, db: Session = Depends(get_db)):
     """Получает урок по ID."""
