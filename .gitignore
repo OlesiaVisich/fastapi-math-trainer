@@ -1,1 +1,4 @@
 *.log
+test.db
+server.log
+app/uploads/
