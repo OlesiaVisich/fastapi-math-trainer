@@ -9,3 +9,4 @@ uploads/
 app/uploads/
 
 .venv
+nohup.out
