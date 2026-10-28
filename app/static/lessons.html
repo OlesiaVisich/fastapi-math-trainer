@@ -144,7 +144,7 @@
   <main>
     <div id="message" class="message"></div>
     <h2>Мои уроки</h2>
-    <button class="btn-new" id="btn-new-lesson" type="button">+ Создать урок</button>
+    <a class="btn-new" id="btn-new-lesson" href="/lessons-page?new=1" style="display:inline-block;text-decoration:none;color:inherit">+ Создать урок</a>
     <div id="lessons"><div class="empty">Загрузка…</div></div>
   </main>
 
@@ -274,6 +274,8 @@
       btn.addEventListener('click', function (ev) {
         ev.preventDefault();
         openModal();
+        // убрать ?new=1 из адреса, чтобы перезагрузка страницы не открывала окно снова
+        history.replaceState(null, '', '/lessons-page');
       });
     })();
     document.getElementById('btn-cancel').addEventListener('click', closeModal);
