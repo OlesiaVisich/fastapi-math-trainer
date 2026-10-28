@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Кабинет учителя — Конструктор работ — v2026-10-28-f</title>
+  <title>Кабинет учителя — Конструктор работ — v2026-10-28-h</title>
   <style>
     :root {
       --primary: #3b6ea5;
@@ -254,7 +254,15 @@
     .sheet-item.dragging { opacity: .45; }
     .sheet-item.drop-before { box-shadow: 0 -3px 0 0 var(--primary); }
     .sheet-item.drop-after { box-shadow: 0 3px 0 0 var(--primary); }
+    /* Номер и текст задания — в одной строке (flex): номер слева, текст
+       сразу правее номера; перенос длинного текста идёт с выравниванием
+       по левому краю текста, а не под номером. */
     .item-head { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; margin-bottom: 4px; }
+    .sheet-item.item-inline { display: flex; align-items: baseline; gap: 8px; padding-right: 32px; }
+    .sheet-item.item-inline .item-head { margin-bottom: 0; flex-shrink: 0; }
+    .sheet-item.item-inline .item-body { flex: 1; min-width: 0; }
+    .item-body.inline p { display: inline; margin: 0; white-space: normal; }
+    .item-body.inline mjx-container[display="true"] { display: inline-block !important; margin: 0 4px !important; text-align: left; }
     .item-num { font-weight: 700; }
     .item-topic { font-weight: 700; }
     .item-meta { font-size: 12px; color: var(--muted); font-family: "Segoe UI", Arial, sans-serif; }
@@ -1144,11 +1152,14 @@
     const FONT_SIZES = [10, 12, 14, 16, 18, 20, 24];
 
     function defaultHtml(t) {
-      // Переносы строк внутри LaTeX-кода схлопываются в пробелы:
-      // иначе текст задания «уезжает» на строку ниже номера.
-      return escapeHtml((t.latex_code || '').replace(/\r?\n/g, ' ').trim())
-        .split(/\s{2,}/).filter(Boolean)
-        .map(line => `<p>${line}</p>`).join('') || '<p>&nbsp;</p>';
+      // Переносы строк внутри LaTeX-кода схлопываются в пробелы, а весь код
+      // одной версии задания выводится ОДНИМ абзацем: номер задания и текст
+      // всегда стоят на одной строке («1) Решите уравнение»), текст не
+      // переносится под номер. Разделение на варианты (пустая строка при
+      // добавлении) происходит раньше — на сервере, поэтому здесь каждый
+      // latex_code содержит ровно один вариант.
+      const oneLine = (t.latex_code || '').replace(/\r?\n/g, ' ').replace(/\s+/g, ' ').trim();
+      return oneLine ? `<p>${escapeHtml(oneLine)}</p>` : '<p>&nbsp;</p>';
     }
 
     function buildToolbar(idx) {
@@ -1195,6 +1206,13 @@
           <div class="item-body"></div>
           <button class="item-remove" title="Убрать с листа" onclick="removeItem(${idx})">✕</button>`;
         const body = div.querySelector('.item-body');
+        // Если у задания нет сохранённого ручного форматирования — номер и
+        // текст выводятся в одну строку (inline-flex), чтобы текст никогда
+        // не переносился под номер.
+        if (!item.edited) {
+          div.classList.add('item-inline');
+          body.classList.add('inline');
+        }
         // редактирование баллов прямо на листе (не мешает перетаскиванию)
         const ptsInput = div.querySelector('.points-input');
         if (ptsInput) {
