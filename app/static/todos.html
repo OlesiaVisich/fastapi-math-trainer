@@ -1,0 +1,612 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Кабинет учителя — Список дел</title>
+  <style>
+    :root {
+      --primary: #3b6ea5;
+      --primary-dark: #2f5a88;
+      --bg: #f4f6f9;
+      --card: #ffffff;
+      --text: #22303e;
+      --muted: #6b7a8c;
+      --border: #dde4ec;
+      --danger: #c0392b;
+      --ok: #1e7e34;
+      --warn: #b26a00;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: "Segoe UI", Arial, sans-serif; background: var(--bg); color: var(--text); }
+    header {
+      background: var(--primary);
+      color: #fff;
+      padding: 16px 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    header h1 { font-size: 20px; font-weight: 600; }
+    nav a { color: #fff; text-decoration: none; margin-left: 18px; font-size: 15px; opacity: .85; }
+    nav a.active, nav a:hover { opacity: 1; font-weight: 600; }
+    main { max-width: 1100px; margin: 24px auto; padding: 0 16px 90px; }
+    h2 { margin-bottom: 16px; font-size: 22px; }
+    .layout { display: grid; grid-template-columns: 1fr 340px; gap: 24px; align-items: start; }
+    @media (max-width: 900px) { .layout { grid-template-columns: 1fr; } }
+    label { display: block; font-size: 14px; color: var(--muted); margin: 12px 0 4px; }
+    input[type="text"], input[type="date"], textarea, select {
+      width: 100%;
+      padding: 9px 10px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      font-size: 14px;
+      font-family: inherit;
+      background: #fff;
+    }
+    textarea { min-height: 60px; resize: vertical; }
+
+    /* Плавающая кнопка «+» справа снизу */
+    .fab {
+      position: fixed;
+      right: 28px;
+      bottom: 28px;
+      width: 58px;
+      height: 58px;
+      border-radius: 50%;
+      background: var(--primary);
+      color: #fff;
+      border: none;
+      font-size: 32px;
+      line-height: 1;
+      cursor: pointer;
+      box-shadow: 0 4px 14px rgba(47, 90, 136, .45);
+      z-index: 60;
+      transition: transform .15s ease, background .15s ease;
+    }
+    .fab:hover { background: var(--primary-dark); transform: scale(1.06); }
+
+    /* Модальное окно добавления дела */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(20, 32, 46, .5);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 50;
+      padding: 16px;
+    }
+    .modal-overlay.open { display: flex; }
+    .modal {
+      background: var(--card);
+      border-radius: 12px;
+      padding: 24px;
+      width: 100%;
+      max-width: 460px;
+      box-shadow: 0 12px 40px rgba(0, 0, 0, .25);
+      max-height: 90vh;
+      overflow-y: auto;
+    }
+    .modal-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
+    .modal-head h2 { margin: 0; font-size: 20px; }
+    .modal-close {
+      background: transparent;
+      border: none;
+      font-size: 24px;
+      color: var(--muted);
+      cursor: pointer;
+      margin: 0;
+      padding: 0 4px;
+    }
+    .modal-close:hover { color: var(--danger); }
+    .modal-actions { display: flex; gap: 10px; margin-top: 18px; }
+    .btn-submit {
+      flex: 1;
+      padding: 14px 20px;
+      font-size: 16px;
+      font-weight: 700;
+      border: none;
+      border-radius: 8px;
+      color: #fff;
+      cursor: pointer;
+      background: linear-gradient(135deg, #3b6ea5, #2fa36b);
+      box-shadow: 0 4px 12px rgba(47, 90, 136, .35);
+      transition: transform .15s ease, box-shadow .15s ease;
+    }
+    .btn-submit:hover { transform: translateY(-1px); box-shadow: 0 6px 16px rgba(47, 90, 136, .45); }
+    .btn-secondary {
+      background: #eef2f7;
+      color: var(--text);
+      border: 1px solid var(--border);
+    }
+    .btn-secondary:hover { background: #dfe7f0; }
+
+    .class-section { margin-bottom: 30px; }
+    .class-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 12px;
+      padding-bottom: 6px;
+      border-bottom: 2px solid var(--primary);
+    }
+    .class-header h3 { font-size: 19px; color: var(--primary-dark); }
+    .class-count {
+      background: var(--primary);
+      color: #fff;
+      font-size: 12px;
+      border-radius: 10px;
+      padding: 2px 10px;
+    }
+    .todo {
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 12px 16px;
+      margin-bottom: 10px;
+      background: var(--card);
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+    }
+    .todo.done { opacity: .6; }
+    .todo.done .todo-text { text-decoration: line-through; color: var(--muted); }
+    .todo-check { margin-top: 3px; width: 18px; height: 18px; cursor: pointer; accent-color: var(--ok); }
+    .todo-body { flex: 1; }
+    .todo-text { font-size: 15px; white-space: pre-wrap; }
+    .todo-meta { margin-top: 4px; font-size: 13px; color: var(--muted); display: flex; gap: 12px; flex-wrap: wrap; }
+    .tag {
+      background: #eaf1f8;
+      color: var(--primary-dark);
+      border-radius: 6px;
+      padding: 1px 8px;
+      font-size: 12px;
+    }
+    .tag.deadline-overdue { background: #fdecea; color: var(--danger); font-weight: 600; }
+    .tag.deadline-soon { background: #fff4e0; color: var(--warn); font-weight: 600; }
+    .btn-del {
+      background: transparent;
+      color: var(--danger);
+      border: 1px solid var(--danger);
+      border-radius: 6px;
+      padding: 4px 12px;
+      font-size: 13px;
+      cursor: pointer;
+    }
+    .btn-del:hover { background: var(--danger); color: #fff; }
+    .empty { color: var(--muted); font-size: 15px; padding: 8px 0; }
+    .message { padding: 10px 14px; border-radius: 6px; margin-bottom: 14px; font-size: 14px; display: none; }
+    .message.ok { display: block; background: #e6f4ea; color: var(--ok); }
+    .message.err { display: block; background: #fdecea; color: var(--danger); }
+
+    /* Календарь */
+    .calendar-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 16px;
+      position: sticky;
+      top: 16px;
+    }
+    .cal-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+    .cal-title { font-size: 16px; font-weight: 600; color: var(--primary-dark); text-transform: capitalize; }
+    .cal-nav {
+      background: #eef2f7;
+      color: var(--primary-dark);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      width: 30px; height: 30px;
+      font-size: 16px;
+      cursor: pointer;
+      padding: 0;
+      margin: 0;
+    }
+    .cal-nav:hover { background: var(--primary); color: #fff; }
+    .cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
+    .cal-weekday {
+      text-align: center;
+      font-size: 11px;
+      color: var(--muted);
+      padding: 4px 0;
+      text-transform: uppercase;
+    }
+    .cal-cell {
+      position: relative;
+      min-height: 40px;
+      border: 1px solid transparent;
+      border-radius: 8px;
+      padding: 4px 6px;
+      font-size: 13px;
+      color: var(--text);
+      cursor: default;
+    }
+    .cal-cell.other { color: #c3ccd6; }
+    .cal-cell.today { border-color: var(--primary); font-weight: 700; }
+    .cal-cell.has-dots { cursor: pointer; }
+    .cal-cell.has-dots:hover { background: #eaf1f8; }
+    .cal-dot-row { position: absolute; bottom: 4px; left: 0; right: 0; display: flex; gap: 3px; justify-content: center; }
+    .cal-dot { width: 7px; height: 7px; border-radius: 50%; }
+    .cal-dot.t-vstrecha { background: #3b6ea5; }
+    .cal-dot.t-napisat-rabotu { background: #8e44ad; }
+    .cal-dot.t-proverit-rabotu { background: #e67e22; }
+    .cal-dot.t-otvetit-na-pismo { background: #16a085; }
+    .cal-dot.t-drugoe { background: #7f8c8d; }
+    .cal-dot.t-urok { background: #2fa36b; }
+    .cal-dot.done { opacity: .35; }
+    .cal-tooltip {
+      position: fixed;
+      z-index: 70;
+      background: #22303e;
+      color: #fff;
+      border-radius: 8px;
+      padding: 10px 12px;
+      font-size: 13px;
+      max-width: 300px;
+      box-shadow: 0 6px 20px rgba(0, 0, 0, .3);
+      display: none;
+      pointer-events: none;
+    }
+    .cal-tooltip .tt-date { font-weight: 700; margin-bottom: 6px; }
+    .cal-tooltip .tt-item { padding: 2px 0; }
+    .cal-tooltip .tt-done { text-decoration: line-through; opacity: .6; }
+    .cal-legend { margin-top: 12px; font-size: 12px; color: var(--muted); display: flex; flex-wrap: wrap; gap: 8px; }
+    .cal-legend span { display: inline-flex; align-items: center; gap: 4px; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>📚 Кабинет учителя</h1>
+    <nav>
+      <a href="/">Главная</a>
+      <a href="/lessons-page">Мои уроки</a>
+      <a href="/todos-page" class="active">Список дел</a>
+      <a href="/tasks-page">Задания</a>
+      <a href="/constructor-page">Конструктор работ</a>
+    </nav>
+  </header>
+
+  <main>
+    <div id="message" class="message"></div>
+
+    <div class="layout">
+      <section>
+        <h2>Список дел</h2>
+        <div id="todos"><div class="empty">Загрузка…</div></div>
+      </section>
+
+      <aside>
+        <div class="calendar-card">
+          <div class="cal-head">
+            <button class="cal-nav" onclick="calMove(-1)" title="Предыдущий месяц">‹</button>
+            <div class="cal-title" id="cal-title"></div>
+            <button class="cal-nav" onclick="calMove(1)" title="Следующий месяц">›</button>
+          </div>
+          <div class="cal-grid" id="cal-weekdays"></div>
+          <div class="cal-grid" id="cal-grid"></div>
+          <div class="cal-legend">
+            <span><i class="cal-dot t-vstrecha"></i>встреча</span>
+            <span><i class="cal-dot t-napisat-rabotu"></i>написать работу</span>
+            <span><i class="cal-dot t-proverit-rabotu"></i>проверить работу</span>
+            <span><i class="cal-dot t-otvetit-na-pismo"></i>ответить на письмо</span>
+            <span><i class="cal-dot t-drugoe"></i>другое</span>
+            <span><i class="cal-dot t-urok"></i>урок</span>
+          </div>
+        </div>
+      </aside>
+    </div>
+  </main>
+
+  <!-- Плавающая кнопка добавления дела -->
+  <button class="fab" id="fab-add" title="Добавить дело" onclick="openModal()">+</button>
+
+  <!-- Всплывающее окно добавления дела -->
+  <div class="modal-overlay" id="modal-overlay">
+    <div class="modal">
+      <div class="modal-head">
+        <h2>Новое дело</h2>
+        <button class="modal-close" onclick="closeModal()" title="Закрыть">×</button>
+      </div>
+      <form id="todo-form">
+        <label for="text">Что нужно сделать *</label>
+        <textarea id="text" name="text" required placeholder="Например: подготовить проверочную работу"></textarea>
+
+        <label for="type">Тип</label>
+        <select id="type" name="type">
+          <option value="">— не выбран —</option>
+          <option value="встреча">Встреча</option>
+          <option value="написать работу">Написать работу</option>
+          <option value="проверить работу">Проверить работу</option>
+          <option value="ответить на письмо">Ответить на письмо</option>
+          <option value="другое">Другое</option>
+        </select>
+
+        <label for="school_class">Класс</label>
+        <input type="text" id="school_class" name="school_class" placeholder="Например: 9А">
+
+        <label for="deadline">Дедлайн</label>
+        <input type="date" id="deadline" name="deadline">
+
+        <div class="modal-actions">
+          <button type="submit" class="btn-submit">➕ Добавить дело</button>
+          <button type="button" class="btn-secondary" onclick="closeModal()">Отмена</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div class="cal-tooltip" id="cal-tooltip"></div>
+
+  <script>
+    const todosEl = document.getElementById('todos');
+    const messageEl = document.getElementById('message');
+    const form = document.getElementById('todo-form');
+    const overlay = document.getElementById('modal-overlay');
+
+    let allTodos = [];
+    let allLessons = [];  // уроки с датами — отмечаются в календаре
+    let calDate = new Date(); // текущая отображаемая дата (месяц)
+
+    const TYPE_META = {
+      'встреча':            { icon: '🤝', cls: 't-vstrecha' },
+      'написать работу':    { icon: '✍️', cls: 't-napisat-rabotu' },
+      'проверить работу':   { icon: '📝', cls: 't-proverit-rabotu' },
+      'ответить на письмо': { icon: '✉️', cls: 't-otvetit-na-pismo' },
+      'другое':             { icon: '📌', cls: 't-drugoe' },
+    };
+
+    function showMessage(text, ok) {
+      messageEl.textContent = text;
+      messageEl.className = 'message ' + (ok ? 'ok' : 'err');
+      setTimeout(() => { messageEl.className = 'message'; }, 4000);
+    }
+
+    function escapeHtml(s) {
+      const div = document.createElement('div');
+      div.textContent = s == null ? '' : String(s);
+      return div.innerHTML;
+    }
+
+    function formatDeadline(iso) {
+      const [y, m, d] = iso.split('-');
+      return `${d}.${m}.${y}`;
+    }
+
+    function deadlineClass(iso) {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const dl = new Date(iso + 'T00:00:00');
+      const diffDays = Math.round((dl - today) / 86400000);
+      if (diffDays < 0) return 'deadline-overdue';
+      if (diffDays <= 2) return 'deadline-soon';
+      return '';
+    }
+
+    function typeInfo(t) {
+      return TYPE_META[(t || '').toLowerCase()] || { icon: '📌', cls: 't-drugoe' };
+    }
+
+    function todoCard(t) {
+      const meta = typeInfo(t.todo_type);
+      const deadlineTag = t.deadline
+        ? `<span class="tag ${t.is_done ? '' : deadlineClass(t.deadline)}">⏰ До ${formatDeadline(t.deadline)}</span>`
+        : '';
+      return `
+        <div class="todo ${t.is_done ? 'done' : ''}">
+          <input type="checkbox" class="todo-check" ${t.is_done ? 'checked' : ''}
+                 onchange="toggleTodo(${t.id}, this.checked)" title="Отметить как выполненное">
+          <div class="todo-body">
+            <div class="todo-text">${escapeHtml(t.text)}</div>
+            <div class="todo-meta">
+              ${t.todo_type ? `<span class="tag">${meta.icon} ${escapeHtml(t.todo_type)}</span>` : ''}
+              ${t.school_class ? `<span class="tag">🎓 ${escapeHtml(t.school_class)}</span>` : ''}
+              ${deadlineTag}
+            </div>
+          </div>
+          <button class="btn-del" onclick="deleteTodo(${t.id})">Удалить</button>
+        </div>`;
+    }
+
+    async function loadTodos() {
+      const res = await fetch('/todos/');
+      if (!res.ok) {
+        todosEl.innerHTML = '<div class="empty">Не удалось загрузить список дел.</div>';
+        showMessage('Не удалось загрузить список дел', false);
+        return;
+      }
+      allTodos = await res.json();
+      // Подгружаем уроки с датами, чтобы отмечать их в календаре
+      try {
+        const lres = await fetch('/lessons/');
+        allLessons = lres.ok ? (await lres.json()).filter(l => l.date) : [];
+      } catch (e) { allLessons = []; }
+      renderTodos();
+      renderCalendar();
+    }
+
+    function renderTodos() {
+      const todos = allTodos;
+      if (!todos.length) {
+        todosEl.innerHTML = '<div class="empty">Пока нет ни одного дела. Нажмите «+» внизу справа, чтобы добавить первое ➕</div>';
+        return;
+      }
+
+      // Группировка дел по параллелям («9А», «9 В» -> «9 класс»)
+      const parallelOf = (v) => {
+        if (!v) return '';
+        const m = String(v).trim().match(/^\d+/);
+        return m ? m[0] : String(v).trim();
+      };
+      const groups = {};
+      for (const t of todos) {
+        const cls = parallelOf(t.school_class) || 'Без класса';
+        (groups[cls] = groups[cls] || []).push(t);
+      }
+
+      const withClass = Object.keys(groups).filter(c => c !== 'Без класса').sort((a, b) => a.localeCompare(b, 'ru'));
+      const withoutClass = groups['Без класса'] || [];
+      const ordered = [...withClass, ...(withoutClass.length ? ['Без класса'] : [])];
+
+      todosEl.innerHTML = ordered.map(cls => `
+        <section class="class-section">
+          <div class="class-header">
+            <h3>${cls === 'Без класса' ? 'Без класса' : escapeHtml(cls) + ' класс'}</h3>
+            <span class="class-count">${groups[cls].length}</span>
+          </div>
+          ${groups[cls].map(todoCard).join('')}
+        </section>
+      `).join('');
+    }
+
+    /* ---------- Модальное окно добавления дела ---------- */
+    function openModal() {
+      overlay.classList.add('open');
+      setTimeout(() => document.getElementById('text').focus(), 50);
+    }
+    function closeModal() {
+      overlay.classList.remove('open');
+    }
+    overlay.addEventListener('click', (e) => { if (e.target === overlay) closeModal(); });
+    document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeModal(); });
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const data = new FormData(form);
+      const res = await fetch('/todos/', { method: 'POST', body: data });
+      if (res.ok) {
+        form.reset();
+        closeModal();
+        showMessage('Дело добавлено', true);
+        loadTodos();
+      } else {
+        const err = await res.json().catch(() => null);
+        showMessage(err && err.detail ? err.detail : 'Не удалось добавить дело', false);
+      }
+    });
+
+    async function toggleTodo(id, isDone) {
+      const data = new FormData();
+      data.append('is_done', isDone ? 'true' : 'false');
+      const res = await fetch('/todos/' + id, { method: 'PUT', body: data });
+      if (!res.ok) showMessage('Не удалось обновить дело', false);
+      loadTodos();
+    }
+
+    async function deleteTodo(id) {
+      if (!confirm('Удалить это дело?')) return;
+      const res = await fetch('/todos/' + id, { method: 'DELETE' });
+      if (res.ok) {
+        showMessage('Дело удалено', true);
+        loadTodos();
+      } else {
+        showMessage('Не удалось удалить дело', false);
+      }
+    }
+
+    /* ---------- Календарь с отметками дел ---------- */
+    const MONTHS = ['январь','февраль','март','апрель','май','июнь','июль','август','сентябрь','октябрь','ноябрь','декабрь'];
+    const WEEKDAYS = ['Пн','Вт','Ср','Чт','Пт','Сб','Вс'];
+
+    function ymd(d) {
+      const m = String(d.getMonth() + 1).padStart(2, '0');
+      const day = String(d.getDate()).padStart(2, '0');
+      return `${d.getFullYear()}-${m}-${day}`;
+    }
+
+    function todosByDeadline() {
+      const map = {};
+      for (const t of allTodos) {
+        if (!t.deadline) continue;
+        (map[t.deadline] = map[t.deadline] || []).push(t);
+      }
+      return map;
+    }
+
+    // Специальные «пункты» для календаря: запланированные уроки
+    function calendarItemsByDate() {
+      const map = todosByDeadline();
+      for (const l of allLessons) {
+        const pseudo = {
+          __lesson: true,
+          text: l.topic,
+          school_class: l.school_class,
+          todo_type: 'урок',
+          lesson_type: l.lesson_type,
+          is_done: false,
+        };
+        (map[l.date] = map[l.date] || []).push(pseudo);
+      }
+      return map;
+    }
+
+    function itemMeta(item) {
+      if (item.__lesson) return { icon: '🎓', cls: 't-urok' };
+      return typeInfo(item.todo_type);
+    }
+
+    function renderCalendar() {
+      const year = calDate.getFullYear();
+      const month = calDate.getMonth();
+      document.getElementById('cal-title').textContent = MONTHS[month] + ' ' + year;
+
+      const wdEl = document.getElementById('cal-weekdays');
+      wdEl.innerHTML = WEEKDAYS.map(w => `<div class="cal-weekday">${w}</div>`).join('');
+
+      const byDate = calendarItemsByDate();
+      const first = new Date(year, month, 1);
+      const startOffset = (first.getDay() + 6) % 7; // Пн=0 ... Вс=6
+      const start = new Date(year, month, 1 - startOffset);
+      const todayIso = ymd(new Date());
+
+      let html = '';
+      for (let i = 0; i < 42; i++) {
+        const d = new Date(start.getFullYear(), start.getMonth(), start.getDate() + i);
+        const iso = ymd(d);
+        const items = byDate[iso] || [];
+        const other = d.getMonth() !== month;
+        const dots = items.slice(0, 4).map(t => {
+          const meta = itemMeta(t);
+          return `<span class="cal-dot ${meta.cls} ${t.is_done ? 'done' : ''}"></span>`;
+        }).join('');
+        html += `<div class="cal-cell ${other ? 'other' : ''} ${iso === todayIso ? 'today' : ''} ${items.length ? 'has-dots' : ''}"
+                      data-date="${iso}"
+                      onmouseenter="showDayTip(event, '${iso}')" onmouseleave="hideDayTip()">
+                   ${d.getDate()}
+                   ${dots ? `<div class="cal-dot-row">${dots}${items.length > 4 ? `<span style="font-size:9px;color:#6b7a8c">+${items.length - 4}</span>` : ''}</div>` : ''}
+                 </div>`;
+      }
+      document.getElementById('cal-grid').innerHTML = html;
+    }
+
+    function calMove(delta) {
+      calDate = new Date(calDate.getFullYear(), calDate.getMonth() + delta, 1);
+      renderCalendar();
+    }
+
+    const tipEl = document.getElementById('cal-tooltip');
+
+    function showDayTip(ev, iso) {
+      const items = (calendarItemsByDate()[iso] || []);
+      if (!items.length) { hideDayTip(); return; }
+      const [y, m, d] = iso.split('-');
+      const dateLabel = `${d} ${MONTHS[parseInt(m, 10) - 1]} ${y}`;
+      tipEl.innerHTML = `<div class="tt-date">📅 ${dateLabel}</div>` +
+        items.map(t => {
+          const meta = itemMeta(t);
+          const clsPart = t.school_class ? ` · ${escapeHtml(t.school_class)} класс` : '';
+          return `<div class="tt-item ${t.is_done ? 'tt-done' : ''}">${meta.icon} ${escapeHtml(t.text)}${clsPart}</div>`;
+        }).join('');
+      tipEl.style.display = 'block';
+      const rect = ev.target.getBoundingClientRect();
+      let left = rect.left;
+      const tipW = Math.min(300, window.innerWidth - 20);
+      if (left + tipW > window.innerWidth - 10) left = window.innerWidth - tipW - 10;
+      tipEl.style.left = left + 'px';
+      tipEl.style.top = (rect.bottom + 6) + 'px';
+    }
+
+    function hideDayTip() { tipEl.style.display = 'none'; }
+
+    loadTodos();
+  </script>
+</body>
+</html>

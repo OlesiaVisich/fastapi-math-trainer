@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Кабинет учителя — Мои уроки</title>
+  <title>Кабинет учителя — Главная</title>
   <style>
     :root {
       --primary: #3b6ea5;
@@ -39,186 +39,145 @@
     }
     nav a.active, nav a:hover { opacity: 1; font-weight: 600; }
     main { max-width: 960px; margin: 24px auto; padding: 0 16px; }
-    h2 { margin-bottom: 16px; font-size: 22px; }
     .card {
       background: var(--card);
       border: 1px solid var(--border);
       border-radius: 10px;
-      padding: 20px;
-      margin-bottom: 24px;
+      padding: 24px;
+      box-shadow: 0 1px 3px rgba(0,0,0,.06);
     }
-    label { display: block; font-size: 14px; color: var(--muted); margin: 12px 0 4px; }
-    input[type="text"], input[type="date"], textarea, input[type="file"] {
-      width: 100%;
-      padding: 9px 10px;
+    .card h2 { font-size: 18px; margin-bottom: 16px; color: var(--primary-dark); }
+    .form-row { display: flex; flex-direction: column; gap: 4px; margin-bottom: 14px; }
+    .form-row label { font-size: 14px; font-weight: 600; color: var(--text); }
+    .form-row input[type="text"],
+    .form-row select,
+    .form-row textarea {
+      padding: 8px 10px;
       border: 1px solid var(--border);
       border-radius: 6px;
       font-size: 14px;
       font-family: inherit;
       background: #fff;
     }
-    textarea { min-height: 80px; resize: vertical; }
-    button {
+    .form-row textarea { min-height: 70px; resize: vertical; }
+    .form-row input[type="file"] { font-size: 13px; }
+    .hint { font-size: 12px; color: var(--muted); }
+    button[type="submit"] {
       background: var(--primary);
       color: #fff;
       border: none;
       border-radius: 6px;
-      padding: 10px 18px;
+      padding: 10px 22px;
       font-size: 15px;
+      font-weight: 600;
       cursor: pointer;
-      margin-top: 16px;
     }
-    button:hover { background: var(--primary-dark); }
-    .lesson {
-      border: 1px solid var(--border);
-      border-radius: 10px;
-      padding: 16px 20px;
-      margin-bottom: 14px;
-      background: var(--card);
-    }
-    .lesson-top { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
-    .lesson-topic { font-size: 17px; font-weight: 600; }
-    .lesson-date { color: var(--muted); font-size: 14px; white-space: nowrap; }
-    .lesson-desc { margin-top: 8px; font-size: 14px; white-space: pre-wrap; }
-    .lesson-hw { margin-top: 8px; font-size: 14px; }
-    .lesson-hw b { color: var(--primary-dark); }
-    .lesson-footer { margin-top: 10px; display: flex; gap: 14px; align-items: center; font-size: 14px; }
-    .lesson-footer a { color: var(--primary); text-decoration: none; }
-    .lesson-footer a:hover { text-decoration: underline; }
-    .pdf-none { color: var(--muted); }
-    .btn-del {
-      background: transparent;
-      color: var(--danger);
-      border: 1px solid var(--danger);
-      padding: 4px 12px;
-      font-size: 13px;
-      margin-top: 0;
-      margin-left: auto;
-    }
-    .btn-del:hover { background: var(--danger); color: #fff; }
-    .empty { color: var(--muted); font-size: 15px; padding: 8px 0; }
-    .message { padding: 10px 14px; border-radius: 6px; margin-bottom: 14px; font-size: 14px; display: none; }
-    .message.ok { display: block; background: #e6f4ea; color: #1e7e34; }
-    .message.err { display: block; background: #fdecea; color: var(--danger); }
-    .hint { font-size: 12px; color: var(--muted); margin-top: 3px; }
+    button[type="submit"]:hover { background: var(--primary-dark); }
+    .error { color: var(--danger); font-size: 14px; margin-bottom: 12px; display: none; }
   </style>
 </head>
 <body>
   <header>
     <h1>📚 Кабинет учителя</h1>
     <nav>
-      <a href="/" class="active">Мои уроки</a>
+      <a href="/" class="active">Главная</a>
+      <a href="/lessons-page">Мои уроки</a>
+      <a href="/todos-page">Список дел</a>
+      <a href="/tasks-page">Задания</a>
+      <a href="/constructor-page">Конструктор работ</a>
     </nav>
   </header>
 
   <main>
-    <div id="message" class="message"></div>
-
-    <section class="card">
-      <h2>Создать урок</h2>
-      <form id="lesson-form">
-        <label for="topic">Тема урока *</label>
-        <input type="text" id="topic" name="topic" required placeholder="Например: Квадратные уравнения">
-
-        <label for="description">Текстовое описание</label>
-        <textarea id="description" name="description" placeholder="План урока, цели, заметки…"></textarea>
-
-        <label for="date">Дата урока</label>
-        <input type="date" id="date" name="date">
-
-        <label for="homework">Домашняя работа</label>
-        <textarea id="homework" name="homework" placeholder="Номера упражнений, страницы…"></textarea>
-
-        <label for="tasks_pdf">Файл с задачами (PDF)</label>
-        <input type="file" id="tasks_pdf" name="tasks_pdf" accept=".pdf,application/pdf">
-        <div class="hint">Загрузите PDF с задачами на урок.</div>
-
+    <div class="card">
+      <h2>➕ Создать урок</h2>
+      <p class="error" id="err"></p>
+      <!-- Обычная HTML-форма: работает без JavaScript, POST сразу на сервер -->
+      <form id="lesson-form" action="/lessons/create" method="post" enctype="multipart/form-data">
+        <div class="form-row">
+          <label for="topic">Тема урока *</label>
+          <input type="text" id="topic" name="topic" required placeholder="Например: Квадратные уравнения">
+        </div>
+        <div class="form-row">
+          <label for="lesson_type">Тип урока *</label>
+          <select id="lesson_type" name="lesson_type" required>
+            <option value="" disabled selected>Выберите тип урока</option>
+            <option value="урок с презентацией">Урок с презентацией</option>
+            <option value="урок с листочком">Урок с листочком</option>
+            <option value="практическая/самостоятельная работа">Практическая/самостоятельная работа</option>
+            <option value="контрольная работа">Контрольная работа</option>
+          </select>
+        </div>
+        <div class="form-row">
+          <label for="school_class">Класс (параллель) *</label>
+          <input type="text" id="school_class" name="school_class" required placeholder="Например: 9">
+        </div>
+        <div class="form-row">
+          <label for="lesson_date">Дата урока</label>
+          <input type="date" id="lesson_date" name="date" min="2026-05-25" max="2027-08-31">
+          <span class="hint">Необязательно. В этом уроке можно выбрать любой день учебного года 2026/2027 (с 25.05.2026 по 31.08.2027). Запланированные уроки отмечены в календаре раздела «Список дел».</span>
+        </div>
+        <div class="form-row">
+          <label for="description">Описание</label>
+          <textarea id="description" name="description" placeholder="Краткое текстовое описание урока"></textarea>
+        </div>
+        <div class="form-row">
+          <label for="homework">Домашняя работа</label>
+          <textarea id="homework" name="homework" placeholder="Номера упражнений, параграфы..."></textarea>
+        </div>
+        <div class="form-row">
+          <label for="main_file">Файл основной *</label>
+          <input type="file" id="main_file" name="main_file" accept=".pdf,.pptx,application/pdf,application/vnd.openxmlformats-officedocument.presentationml.presentation">
+          <span class="hint" id="main-file-hint">Необязательно. Форматы: PDF и PPTX.</span>
+        </div>
+        <div class="form-row" id="keys-row">
+          <label for="keys_file">Ключи для проверки</label>
+          <input type="file" id="keys_file" name="keys_file" accept=".pdf,application/pdf">
+          <span class="hint">Необязательно. Формат: PDF.</span>
+        </div>
         <button type="submit">Создать урок</button>
       </form>
-    </section>
-
-    <section>
-      <h2>Мои уроки</h2>
-      <div id="lessons"></div>
-    </section>
+    </div>
   </main>
 
   <script>
-    const lessonsEl = document.getElementById('lessons');
-    const formEl = document.getElementById('lesson-form');
-    const messageEl = document.getElementById('message');
-
-    function showMessage(text, ok) {
-      messageEl.textContent = text;
-      messageEl.className = 'message ' + (ok ? 'ok' : 'err');
-      setTimeout(() => { messageEl.className = 'message'; }, 4000);
+    // Если модалка «Мои уроки» не открылась и пользователя перекинуло сюда —
+    // автоматически возвращаем его на страницу уроков с открытой формой создания.
+    if (window.location.search.indexOf("new=1") !== -1) {
+      window.location.href = "/lessons-page?new=1";
     }
-
-    function formatDate(iso) {
-      if (!iso) return '';
-      const d = new Date(iso);
-      return d.toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit', year: 'numeric' });
-    }
-
-    function escapeHtml(s) {
-      const div = document.createElement('div');
-      div.textContent = s == null ? '' : String(s);
-      return div.innerHTML;
-    }
-
-    async function loadLessons() {
-      const res = await fetch('/lessons/');
-      if (!res.ok) { showMessage('Не удалось загрузить уроки', false); return; }
-      const lessons = await res.json();
-      if (!lessons.length) {
-        lessonsEl.innerHTML = '<div class="empty">Пока нет ни одного урока — создайте первый выше.</div>';
-        return;
-      }
-      lessonsEl.innerHTML = lessons.map(l => `
-        <div class="lesson">
-          <div class="lesson-top">
-            <div class="lesson-topic">${escapeHtml(l.topic)}</div>
-            <div class="lesson-date">${l.date ? formatDate(l.date) : ''}</div>
-          </div>
-          ${l.description ? `<div class="lesson-desc">${escapeHtml(l.description)}</div>` : ''}
-          ${l.homework ? `<div class="lesson-hw"><b>Домашняя работа:</b> ${escapeHtml(l.homework)}</div>` : ''}
-          <div class="lesson-footer">
-            ${l.pdf_filename
-              ? `<a href="/lessons/${l.id}/pdf" download>📎 Скачать задачи (PDF)</a>`
-              : '<span class="pdf-none">PDF с задачами не прикреплён</span>'}
-            <button class="btn-del" onclick="deleteLesson(${l.id})">Удалить</button>
-          </div>
-        </div>
-      `).join('');
-    }
-
-    async function deleteLesson(id) {
-      if (!confirm('Удалить этот урок?')) return;
-      const res = await fetch('/lessons/' + id, { method: 'DELETE' });
-      if (res.ok) {
-        showMessage('Урок удалён', true);
-        loadLessons();
+    // Динамические подписи полей файлов в зависимости от типа урока
+    var MAIN_LABELS = {
+      "урок с презентацией": "Презентация",
+      "урок с листочком": "Листочек с заданиями",
+      "практическая/самостоятельная работа": "Текст работы",
+      "контрольная работа": "Контрольная работа"
+    };
+    function updateFileLabels() {
+      var t = document.getElementById("lesson_type").value;
+      var lbl = document.querySelector("label[for='main_file']");
+      var keysRow = document.getElementById("keys-row");
+      if (MAIN_LABELS[t]) {
+        lbl.textContent = MAIN_LABELS[t] + " *";
       } else {
-        showMessage('Не удалось удалить урок', false);
+        lbl.textContent = "Файл основной";
       }
+      keysRow.style.display = (t === "урок с презентацией") ? "none" : "";
     }
-
-    formEl.addEventListener('submit', async (e) => {
-      e.preventDefault();
-      const data = new FormData(formEl);
-      if (!data.get('topic')) { showMessage('Укажите тему урока', false); return; }
-      const res = await fetch('/lessons/', { method: 'POST', body: data });
-      if (res.ok) {
-        showMessage('Урок создан', true);
-        formEl.reset();
-        loadLessons();
+    document.getElementById("lesson_type").addEventListener("change", updateFileLabels);
+    updateFileLabels();
+    // Клиентская валидация: не даём отправить пустую тему
+    document.getElementById("lesson-form").addEventListener("submit", function (e) {
+      var topic = document.getElementById("topic").value.trim();
+      var err = document.getElementById("err");
+      if (!topic) {
+        e.preventDefault();
+        err.textContent = "Укажите тему урока.";
+        err.style.display = "block";
       } else {
-        const err = await res.json().catch(() => ({}));
-        showMessage(err.detail ? JSON.stringify(err.detail) : 'Ошибка при создании урока', false);
+        err.style.display = "none";
       }
     });
-
-    loadLessons();
   </script>
 </body>
 </html>

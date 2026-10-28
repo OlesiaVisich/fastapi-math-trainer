@@ -3,20 +3,61 @@ import os
 
 from fastapi import FastAPI
 from fastapi.responses import FileResponse
-from app.api import auth, users, worksheets, generate, lessons
+from app.api import auth, users, worksheets, generate, lessons, todos, assignments
 
-app = FastAPI()
+
+def _startup():
+    """Создаёт недостающие таблицы и колонки при запуске сервера.
+
+    Это защищает от ошибки "no such column: lessons.lesson_type" после
+    обновления кода без перезапуска init_db.py.
+    """
+    from app.database import Base, engine
+    import app.models  # noqa: F401  (регистрация всех моделей)
+    from app.migrate import run_migrations
+
+    Base.metadata.create_all(bind=engine)
+    run_migrations(engine)
+
+
+app = FastAPI(on_startup=[_startup])
 
 app.include_router(auth.router, prefix="/auth", tags=["auth"])
 app.include_router(users.router, prefix="/users", tags=["users"])
 app.include_router(worksheets.router, prefix="/worksheets", tags=["worksheets"])
 app.include_router(generate.router, prefix="/api", tags=["generate"])
 app.include_router(lessons.router, prefix="/lessons", tags=["lessons"])
+app.include_router(todos.router, prefix="/todos", tags=["todos"])
+app.include_router(assignments.router, prefix="/assignments", tags=["assignments"])
 
 STATIC_DIR = os.path.join(os.path.dirname(__file__), "static")
 
 
 @app.get("/", include_in_schema=False)
 def index():
-    """Главная страница сайта — раздел «Мои уроки»."""
+    """Главная страница сайта."""
     return FileResponse(os.path.join(STATIC_DIR, "index.html"))
+
+
+@app.get("/lessons-page", include_in_schema=False)
+def lessons_page():
+    """Страница «Мои уроки»."""
+    return FileResponse(os.path.join(STATIC_DIR, "lessons.html"))
+
+
+@app.get("/todos-page", include_in_schema=False)
+def todos_page():
+    """Страница «Список дел»."""
+    return FileResponse(os.path.join(STATIC_DIR, "todos.html"))
+
+
+@app.get("/tasks-page", include_in_schema=False)
+def tasks_page():
+    """Страница «Задания» (задания для учеников)."""
+    return FileResponse(os.path.join(STATIC_DIR, "tasks.html"))
+
+
+@app.get("/constructor-page", include_in_schema=False)
+def constructor_page():
+    """Страница «Конструктор работ»."""
+    return FileResponse(os.path.join(STATIC_DIR, "constructor.html"))

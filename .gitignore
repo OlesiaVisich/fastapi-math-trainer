@@ -1,5 +1,12 @@
 __pycache__/
 *.pyc
-.env
-.env.local
-test.db
+*.log
+*.tmp
+*.db
+
+.venv/
+uploads/
+app/uploads/
+
+.venv
+nohup.out

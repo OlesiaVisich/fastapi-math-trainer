@@ -1,0 +1,752 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Кабинет учителя — Задания</title>
+  <style>
+    :root {
+      --primary: #3b6ea5;
+      --primary-dark: #2f5a88;
+      --bg: #f4f6f9;
+      --card: #ffffff;
+      --text: #22303e;
+      --muted: #6b7a8c;
+      --border: #dde4ec;
+      --danger: #c0392b;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: "Segoe UI", Arial, sans-serif; background: var(--bg); color: var(--text); }
+    header {
+      background: var(--primary);
+      color: #fff;
+      padding: 16px 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    header h1 { font-size: 20px; font-weight: 600; }
+    nav a { color: #fff; text-decoration: none; margin-left: 18px; font-size: 15px; opacity: .85; }
+    nav a.active, nav a:hover { opacity: 1; font-weight: 600; }
+    main { max-width: 960px; margin: 24px auto; padding: 0 16px; }
+    h2 { margin-bottom: 16px; font-size: 22px; }
+
+    /* Плавающая кнопка «+» справа снизу */
+    .fab {
+      position: fixed;
+      right: 28px;
+      bottom: 28px;
+      width: 58px;
+      height: 58px;
+      border-radius: 50%;
+      background: var(--primary);
+      color: #fff;
+      border: none;
+      font-size: 32px;
+      line-height: 1;
+      cursor: pointer;
+      box-shadow: 0 4px 14px rgba(47, 90, 136, .45);
+      z-index: 60;
+      transition: transform .15s ease, background .15s ease;
+    }
+    .fab:hover { background: var(--primary-dark); transform: scale(1.06); }
+
+    /* Модальное окно добавления задания */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(20, 30, 45, .55);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 70;
+      padding: 16px;
+    }
+    .modal-overlay.open { display: flex; }
+    .modal {
+      background: var(--card);
+      border-radius: 12px;
+      padding: 22px;
+      width: 100%;
+      max-width: 460px;
+      box-shadow: 0 12px 40px rgba(0, 0, 0, .25);
+      max-height: 90vh;
+      overflow-y: auto;
+    }
+    .modal-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
+    .modal-head h2 { margin: 0; font-size: 20px; }
+    .modal-close {
+      background: transparent;
+      border: none;
+      font-size: 24px;
+      color: var(--muted);
+      cursor: pointer;
+      margin: 0;
+      padding: 0 4px;
+    }
+    .modal-close:hover { color: var(--danger); }
+    .modal-actions { display: flex; gap: 10px; margin-top: 18px; }
+    .btn-submit {
+      flex: 1;
+      padding: 14px 20px;
+      font-size: 16px;
+      font-weight: 700;
+      border: none;
+      border-radius: 8px;
+      color: #fff;
+      cursor: pointer;
+      background: linear-gradient(135deg, #3b6ea5, #2fa36b);
+      box-shadow: 0 4px 12px rgba(47, 90, 136, .35);
+      transition: transform .15s ease, box-shadow .15s ease;
+    }
+    .btn-submit:hover { transform: translateY(-1px); box-shadow: 0 6px 16px rgba(47, 90, 136, .45); }
+    .btn-secondary {
+      background: #eef2f7;
+      color: var(--text);
+      border: 1px solid var(--border);
+    }
+    .btn-secondary:hover { background: #dfe7f0; }
+
+    label { display: block; font-size: 14px; color: var(--muted); margin: 12px 0 4px; }
+    input[type="text"], select {
+      width: 100%;
+      padding: 9px 10px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      font-size: 14px;
+      font-family: inherit;
+      background: #fff;
+    }
+
+    .message { padding: 10px 14px; border-radius: 6px; margin-bottom: 14px; font-size: 14px; display: none; }
+    .message.ok { display: block; background: #e6f4ea; color: #1e7e34; }
+    .message.err { display: block; background: #fdecea; color: var(--danger); }
+
+    /* Разделы по классам */
+    .class-section { margin-bottom: 30px; }
+    .class-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 12px;
+      padding-bottom: 6px;
+      border-bottom: 2px solid var(--primary);
+    }
+    .class-header h3 { font-size: 19px; color: var(--primary-dark); }
+    .class-count {
+      background: var(--primary);
+      color: #fff;
+      font-size: 12px;
+      border-radius: 10px;
+      padding: 2px 10px;
+    }
+    .assignment {
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 12px 16px;
+      margin-bottom: 10px;
+      background: var(--card);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+    .assignment-title { font-size: 15px; font-weight: 600; }
+    .badge {
+      display: inline-block;
+      font-size: 12px;
+      border-radius: 10px;
+      padding: 2px 10px;
+      margin-left: 8px;
+      color: #fff;
+      vertical-align: middle;
+    }
+    .badge.easy { background: #2fa36b; }
+    .badge.medium { background: #e6a23c; }
+    .badge.hard { background: #c0392b; }
+    .badge.none { background: #9aa8b8; }
+    .badge.group { background: #7c3aed; }
+    .radio-row { display: flex; gap: 16px; flex-wrap: wrap; margin-bottom: 8px; }
+    .radio-row label { font-weight: normal; }
+    .hint { font-size: 12px; color: var(--muted, #7a8794); margin: 4px 0 0; }
+    .btn-del {
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--danger);
+      border-radius: 6px;
+      padding: 6px 12px;
+      font-size: 13px;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+    .btn-del:hover { background: #fdecea; }
+    .empty { color: var(--muted); font-size: 15px; padding: 20px 0; }
+
+    textarea#latex_code {
+      width: 100%;
+      padding: 9px 10px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      font-size: 13px;
+      font-family: "Consolas", "Courier New", monospace;
+      background: #fff;
+      resize: vertical;
+    }
+
+    /* Просмотр задания (всплывающее окно с отрендеренным LaTeX) */
+    .viewer-body { max-height: 60vh; overflow-y: auto; margin-top: 8px; }
+    /* Ограничение размеров отрендеренного LaTeX (MathJax) */
+    mjx-container { max-width: 100%; }
+    mjx-container[display="true"] { display: block; margin: 4px 0 !important; }
+    mjx-container svg { max-width: 100% !important; height: auto; display: inline-block; }
+    .viewer-meta { font-size: 14px; color: var(--muted); margin-bottom: 10px; }
+    .viewer-latex {
+      border: 1px dashed var(--border);
+      border-radius: 8px;
+      background: #f8fafc;
+      color: #567;
+      padding: 10px 12px;
+      font-family: "Consolas", "Courier New", monospace;
+      font-size: 12.5px;
+      white-space: pre-wrap;
+      word-break: break-word;
+      margin-top: 14px;
+      max-height: 200px;
+      overflow-y: auto;
+    }
+    .viewer-latex[hidden] { display: none; }
+    .render-error { color: var(--danger); font-size: 14px; }
+    .btn-view {
+      background: transparent;
+      border: 1px solid var(--primary);
+      color: var(--primary);
+      border-radius: 6px;
+      padding: 6px 12px;
+      font-size: 13px;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+    .btn-view:hover { background: #eaf1f8; }
+    /* Группы аналогов (сворачиваемые стопки) */
+    .group-block {
+      border: 1px solid #d8c9f6;
+      border-radius: 10px;
+      margin-bottom: 12px;
+      background: #faf7ff;
+      overflow: hidden;
+    }
+    .group-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 14px;
+      cursor: pointer;
+      user-select: none;
+    }
+    .group-header:hover { background: #f1eafc; }
+    .group-arrow { font-size: 12px; color: #7c3aed; transition: transform .15s; width: 14px; }
+    .group-block.open .group-arrow { transform: rotate(90deg); }
+    .group-name { font-weight: 600; color: #5b21b6; font-size: 15px; }
+    .group-count {
+      background: #7c3aed;
+      color: #fff;
+      font-size: 12px;
+      border-radius: 10px;
+      padding: 2px 10px;
+    }
+    .group-body { display: none; padding: 4px 14px 12px; }
+    .group-block.open .group-body { display: block; }
+    .group-item {
+      border-top: 1px dashed #e0d4f5;
+      padding-top: 8px;
+      margin-top: 8px;
+    }
+    .group-item:first-child { border-top: none; margin-top: 0; padding-top: 4px; }
+    .group-latex { font-size: 14px; color: #333; margin-top: 4px; overflow-x: auto; }
+    .mjx-load-failed { color: #b91c1c; font-family: monospace; font-size: 12.5px; white-space: pre-wrap; }
+    .group-toolbar { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; flex-wrap: wrap; }
+    .btn-toggle-code {
+      background: transparent;
+      border: none;
+      color: var(--muted);
+      font-size: 13px;
+      cursor: pointer;
+      text-decoration: underline;
+      margin-top: 8px;
+      padding: 0;
+    }
+  </style>
+  <script>
+    window.MathJax = {
+      tex: {
+        inlineMath: [['$', '$'], ['\\(', '\\)']],
+        displayMath: [['$$', '$$'], ['\\[', '\\]']]
+      },
+      options: { skipHtmlTypesetOff: ['pre'] },
+      startup: { typeset: false },
+      svg: { fontCache: 'global' }
+    };
+  </script>
+  <script async id="MathJax-script" src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"></script>
+</head>
+<body>
+  <header>
+    <h1>📚 Кабинет учителя</h1>
+    <nav>
+      <a href="/">Главная</a>
+      <a href="/lessons-page">Мои уроки</a>
+      <a href="/todos-page">Список дел</a>
+      <a href="/tasks-page" class="active">Задания</a>
+      <a href="/constructor-page">Конструктор работ</a>
+    </nav>
+  </header>
+
+  <main>
+    <div id="message" class="message"></div>
+    <h2>Задания</h2>
+    <div class="group-toolbar">
+      <label style="display:inline-flex; align-items:center; gap:6px; margin:0; font-size:14px;">
+        <input type="checkbox" id="group-toggle" checked> Группировать аналоги в свёрнутые блоки
+      </label>
+      <span style="flex:1"></span>
+      <button type="button" class="btn-secondary" id="btn-expand-all" style="padding:5px 12px; font-size:13px;">Развернуть все</button>
+      <button type="button" class="btn-secondary" id="btn-collapse-all" style="padding:5px 12px; font-size:13px;">Свернуть все</button>
+    </div>
+    <div id="assignments-list"></div>
+  </main>
+
+  <!-- Плавающая кнопка добавления -->
+  <button class="fab" id="fab-add" title="Добавить задание" onclick="openModal()">+</button>
+
+  <!-- Модальное окно добавления задания -->
+  <div class="modal-overlay" id="modal-overlay">
+    <div class="modal">
+      <div class="modal-head">
+        <h2>Новое задание</h2>
+        <button class="modal-close" onclick="closeModal()" title="Закрыть">×</button>
+      </div>
+      <form id="assignment-form">
+        <label for="school_class">Параллель (класс) *</label>
+        <input type="text" id="school_class" name="school_class" required placeholder="Например: 9 или 9А">
+
+        <label for="topic">Тема *</label>
+        <input type="text" id="topic" name="topic" required placeholder="Например: Квадратные уравнения">
+
+        <label for="difficulty">Сложность</label>
+        <select id="difficulty" name="difficulty">
+          <option value="">— не указана —</option>
+          <option value="простая">Простая</option>
+          <option value="средняя">Средняя</option>
+          <option value="высокая">Высокая</option>
+        </select>
+
+        <label>Источник заданий</label>
+        <div class="radio-row">
+          <label><input type="radio" name="source_mode" value="text" checked onchange="toggleSource()"> Ввести LaTeX-код текстом</label>
+          <label><input type="radio" name="source_mode" value="file" onchange="toggleSource()"> Загрузить документ (.txt / .tex)</label>
+        </div>
+
+        <div id="source-text">
+          <label for="latex_code">LaTeX-код задания(й)</label>
+          <textarea id="latex_code" name="latex_code" rows="8"
+            placeholder="Одно задание:&#10;$$x^2 - 5x + 6 = 0$$&#10;&#10;Несколько аналогов — разделяйте их пустой строкой:&#10;$$x + 12 = 17$$&#10;&#10;$$x + 25 = 40$$&#10;&#10;$$x + 31 = 55$$"></textarea>
+        </div>
+        <div id="source-file" hidden>
+          <label for="file">Файл с заданиями</label>
+          <input type="file" id="file" name="file" accept=".txt,.tex,.md,text/plain">
+          <p class="hint">Каждое задание в файле отделяйте пустой строкой.</p>
+        </div>
+
+        <label for="group_mode">Группа аналогов</label>
+        <select id="group_mode" name="group_mode" onchange="toggleGroup()">
+          <option value="none">Без группы (одиночное задание)</option>
+          <option value="new">Создать новую группу аналогов</option>
+          <option value="existing">Добавить в существующую группу</option>
+        </select>
+        <div id="group-new" hidden>
+          <label for="new_group_name">Название группы</label>
+          <input type="text" id="new_group_name" name="new_group_name"
+            placeholder="Например: Линейные уравнения, лист 1">
+        </div>
+        <div id="group-existing" hidden>
+          <label for="existing_group_id">Существующая группа</label>
+          <select id="existing_group_id" name="existing_group_id"></select>
+        </div>
+
+        <div class="modal-actions">
+          <button type="submit" class="btn-submit">➕ Добавить задание</button>
+          <button type="button" class="btn-secondary" onclick="closeModal()">Отмена</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Модальное окно просмотра задания -->
+  <div class="modal-overlay" id="viewer-overlay">
+    <div class="modal" style="max-width: 640px;">
+      <div class="modal-head">
+        <h2 id="viewer-title">Задание</h2>
+        <button class="modal-close" onclick="closeViewer()" title="Закрыть">×</button>
+      </div>
+      <div class="viewer-meta" id="viewer-meta"></div>
+      <div class="viewer-body" id="viewer-content"></div>
+      <button class="btn-toggle-code" id="viewer-toggle" onclick="toggleCode()" hidden>Показать исходный LaTeX-код</button>
+      <pre class="viewer-latex" id="viewer-code" hidden></pre>
+    </div>
+  </div>
+
+  <script>
+    const listEl = document.getElementById('assignments-list');
+    const messageEl = document.getElementById('message');
+    const formEl = document.getElementById('assignment-form');
+    const overlayEl = document.getElementById('modal-overlay');
+
+    function showMessage(text, ok) {
+      messageEl.textContent = text;
+      messageEl.className = 'message ' + (ok ? 'ok' : 'err');
+      setTimeout(() => { messageEl.className = 'message'; }, 4000);
+    }
+
+    function escapeHtml(s) {
+      const div = document.createElement('div');
+      div.textContent = s == null ? '' : String(s);
+      return div.innerHTML;
+    }
+
+    function openModal() {
+      overlayEl.classList.add('open');
+      loadGroups();
+      document.getElementById('school_class').focus();
+    }
+    function closeModal() {
+      overlayEl.classList.remove('open');
+      formEl.reset();
+      toggleSource();
+      toggleGroup();
+    }
+
+    function toggleSource() {
+      const mode = formEl.querySelector('input[name="source_mode"]:checked').value;
+      document.getElementById('source-text').hidden = mode !== 'text';
+      document.getElementById('source-file').hidden = mode !== 'file';
+      // Снимаем required с неактивного источника, чтобы браузер не блокировал
+      // отправку формы («нет новой версии / ошибка при добавлении»)
+      const ta = document.getElementById('latex_code');
+      const fi = document.getElementById('file');
+      if (ta) ta.required = false;
+      if (fi) fi.required = false;
+      if (mode === 'file') {
+        formEl.querySelectorAll('[data-from-file]').forEach((el) => el.remove());
+      } else {
+        formEl.file.value = '';
+      }
+    }
+
+    function toggleGroup() {
+      const mode = document.getElementById('group_mode').value;
+      document.getElementById('group-new').hidden = mode !== 'new';
+      document.getElementById('group-existing').hidden = mode !== 'existing';
+    }
+
+    async function loadGroups() {
+      const sel = document.getElementById('existing_group_id');
+      try {
+        const res = await fetch('/assignments/groups');
+        if (!res.ok) return;
+        const groups = await res.json();
+        sel.innerHTML = groups.length
+          ? groups.map((g) => `<option value="${g.id}">${escapeHtml(g.name)} (${g.assignments_count})</option>`).join('')
+          : '<option value="">— групп пока нет —</option>';
+      } catch (e) { /* не критично */ }
+    }
+    overlayEl.addEventListener('click', (e) => { if (e.target === overlayEl) closeModal(); });
+    document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeModal(); });
+
+    const DIFF_LABELS = {
+      'простая': ['Простая', 'easy'],
+      'средняя': ['Средняя', 'medium'],
+      'высокая': ['Высокая', 'hard'],
+    };
+
+    async function loadAssignments() {
+      const res = await fetch('/assignments/');
+      if (!res.ok) { showMessage('Ошибка загрузки заданий', false); return; }
+      const items = await res.json();
+      assignmentsCache = items;
+      if (!items.length) {
+        listEl.innerHTML = '<div class="empty">Заданий пока нет. Нажмите «+», чтобы добавить первое.</div>';
+        return;
+      }
+      // Группировка по параллелям: «9А», «9В» -> общий раздел «9 класс»
+      const parallelOf = (v) => {
+        if (!v) return '';
+        const m = String(v).trim().match(/^\d+/);
+        return m ? m[0] : String(v).trim();
+      };
+      const byClass = {};
+      items.forEach((a) => {
+        const cls = parallelOf(a.school_class) || 'Без класса';
+        (byClass[cls] = byClass[cls] || []).push(a);
+      });
+      const classes = Object.keys(byClass).sort((a, b) => {
+        const na = parseInt(a, 10), nb = parseInt(b, 10);
+        if (!isNaN(na) && !isNaN(nb)) return na - nb;
+        return a.localeCompare(b, 'ru');
+      });
+      listEl.innerHTML = classes.map((cls) => `
+        <section class="class-section">
+          <div class="class-header">
+            <h3>${cls === 'Без класса' ? 'Без класса' : escapeHtml(cls) + ' класс'}</h3>
+            <span class="class-count">${byClass[cls].length}</span>
+          </div>
+          ${renderClassItems(byClass[cls])}
+        </section>
+      `).join('');
+      typesetGroups();
+    }
+
+    /* Рендер списка внутри раздела класса: аналоги -> сворачиваемые группы */
+    function renderClassItems(items) {
+      const groupOn = document.getElementById('group-toggle').checked;
+      if (!groupOn) return items.map(renderAssignment).join('');
+      // Сохраняем состояние раскрытия групп между перезагрузками
+      let openState = {};
+      try { openState = JSON.parse(localStorage.getItem('tasks_groups_open') || '{}'); } catch (e) {}
+      const singles = [];
+      const groups = new Map(); // key -> {name, gid, items[]}
+      items.forEach((a) => {
+        if (a.group_name) {
+          const key = a.group_name + '|' + (a.group_id != null ? a.group_id : '');
+          if (!groups.has(key)) groups.set(key, { name: a.group_name, gid: a.group_id, items: [] });
+          groups.get(key).items.push(a);
+        } else {
+          singles.push(a);
+        }
+      });
+      const groupHtml = [...groups.values()].map((g) => {
+        const gkey = String(g.gid != null ? g.gid : g.name);
+        const isOpen = !!openState[gkey];
+        return `
+        <div class="group-block${isOpen ? ' open' : ''}" data-gkey="${escapeHtml(gkey)}">
+          <div class="group-header" onclick="toggleGroupBlock(this)">
+            <span class="group-arrow">▶</span>
+            <span class="group-name">⚡ ${escapeHtml(g.name)}</span>
+            <span class="group-count">${g.items.length} вариант${g.items.length === 1 ? '' : g.items.length < 5 ? 'а' : 'ов'}</span>
+          </div>
+          <div class="group-body">
+            ${g.items.map((a) => `
+              <div class="group-item">
+                <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+                  <span class="assignment-title" style="font-size:14px;">${escapeHtml(a.topic)}</span>
+                  <span class="badge ${(DIFF_LABELS[a.difficulty] || ['', 'none'])[1]}">${(DIFF_LABELS[a.difficulty] || ['Без сложности', 'none'])[0]}</span>
+                  <button class="btn-del" onclick="deleteAssignment(${a.id})">Удалить</button>
+                </div>
+                ${a.latex_code ? `<div class="group-latex" data-latex="${encodeURIComponent(a.latex_code)}"></div>` : ''}
+              </div>`).join('')}
+          </div>
+        </div>`;
+      }).join('');
+      return groupHtml + singles.map(renderAssignment).join('');
+    }
+
+    function toggleGroupBlock(headerEl) {
+      const block = headerEl.closest('.group-block');
+      block.classList.toggle('open');
+      let openState = {};
+      try { openState = JSON.parse(localStorage.getItem('tasks_groups_open') || '{}'); } catch (e) {}
+      openState[block.dataset.gkey] = block.classList.contains('open');
+      localStorage.setItem('tasks_groups_open', JSON.stringify(openState));
+      if (block.classList.contains('open')) typesetGroups(block);
+    }
+
+    function setAllGroups(open) {
+      document.querySelectorAll('.group-block').forEach((b) => b.classList.toggle('open', open));
+      let openState = {};
+      try { openState = JSON.parse(localStorage.getItem('tasks_groups_open') || '{}'); } catch (e) {}
+      document.querySelectorAll('.group-block').forEach((b) => { openState[b.dataset.gkey] = open; });
+      localStorage.setItem('tasks_groups_open', JSON.stringify(openState));
+      if (open) typesetGroups();
+    }
+
+    /* Ленивый рендер LaTeX в группах тем же MathJax, что и окно просмотра (tex-svg) */
+    async function typesetGroups(scope) {
+      const root = scope || listEl;
+      const nodes = [...root.querySelectorAll('.group-latex:not([data-typeset])')];
+      if (!nodes.length) return;
+      nodes.forEach((n) => { n.setAttribute('data-typeset', 'pending'); });
+      // ждём готовности MathJax до 6 секунд, при недоступности CDN — показываем исходный код
+      const ready = await Promise.race([
+        (window.MathJax && MathJax.startup && MathJax.startup.promise) ? MathJax.startup.promise.then(() => true) : Promise.resolve(false),
+        new Promise((res) => setTimeout(() => res(!!(window.MathJax && MathJax.typesetPromise)), 6000))
+      ]);
+      if (!ready || !window.MathJax || !MathJax.typesetPromise) {
+        nodes.forEach((n) => {
+          n.removeAttribute('data-typeset');
+          n.innerHTML = '<div class="mjx-load-failed">' + escapeHtml(decodeURIComponent(n.dataset.latex || '')) + '</div>';
+        });
+        return;
+      }
+      for (const n of nodes) {
+        try {
+          const text = decodeURIComponent(n.dataset.latex || '');
+          n.innerHTML = escapeHtml(text).split(/\r?\n/).map((l) => l ? `<p>${l}</p>` : '<p>&nbsp;</p>').join('');
+          await MathJax.typesetPromise([n]);
+          n.setAttribute('data-typeset', 'done');
+        } catch (e) { /* пропускаем */ }
+      }
+    }
+
+    function renderAssignment(a) {
+      const [label, css] = DIFF_LABELS[a.difficulty] || ['Без сложности', 'none'];
+      const viewBtn = a.latex_code
+        ? `<button class="btn-view" onclick="viewAssignment(${a.id})">👁 Просмотр</button>`
+        : '';
+      const groupBadge = a.group_name
+        ? `<span class="badge group" title="Аналог в группе">⚡ ${escapeHtml(a.group_name)}</span>`
+        : '';
+      return `
+        <div class="assignment">
+          <div>
+            <span class="assignment-title">${escapeHtml(a.topic)}</span>
+            <span class="badge ${css}">${label}</span>
+            ${groupBadge}
+          </div>
+          <div style="display:flex; gap:8px;">
+            ${viewBtn}
+            <button class="btn-del" onclick="deleteAssignment(${a.id})">Удалить</button>
+          </div>
+        </div>`;
+    }
+
+    /* ---------- Просмотр задания с компиляцией LaTeX (MathJax) ---------- */
+    const viewerOverlay = document.getElementById('viewer-overlay');
+    let assignmentsCache = [];
+
+    async function typesetMath(el) {
+      if (window.MathJax && window.MathJax.typesetPromise) {
+        try { await MathJax.typesetPromise([el]); } catch (e) { /* не критично */ }
+      } else if (window.MathJax && MathJax.startup && MathJax.startup.promise) {
+        try { await MathJax.startup.promise.then(() => MathJax.typesetPromise([el])); } catch (e) {}
+      }
+    }
+
+    async function viewAssignment(id) {
+      if (!assignmentsCache.length) await loadAssignments();
+      const a = assignmentsCache.find((x) => x.id === id);
+      if (!a) return;
+      document.getElementById('viewer-title').textContent = a.topic;
+      document.getElementById('viewer-meta').textContent =
+        `Класс: ${a.school_class}${a.difficulty ? ' · Сложность: ' + a.difficulty : ''}`;
+      const contentEl = document.getElementById('viewer-content');
+      const codeEl = document.getElementById('viewer-code');
+      const toggleEl = document.getElementById('viewer-toggle');
+      // Исходный текст: абзацы, экранированный HTML; MathJax отрендерит $...$ и $$...$$
+      contentEl.innerHTML = '<div class="render-error">Загрузка…</div>';
+      codeEl.textContent = a.latex_code || '';
+      codeEl.hidden = true;
+      toggleEl.hidden = !a.latex_code;
+      toggleEl.textContent = 'Показать исходный LaTeX-код';
+      viewerOverlay.classList.add('open');
+      if (a.latex_code) {
+        contentEl.innerHTML = escapeHtml(a.latex_code)
+          .split(/\r?\n/).map((line) => line ? `<p>${line}</p>` : '<p>&nbsp;</p>').join('');
+        await typesetMath(contentEl);
+      } else {
+        contentEl.innerHTML = '<div class="empty">LaTeX-код не добавлен.</div>';
+      }
+    }
+
+    function closeViewer() {
+      viewerOverlay.classList.remove('open');
+    }
+    function toggleCode() {
+      const codeEl = document.getElementById('viewer-code');
+      const toggleEl = document.getElementById('viewer-toggle');
+      codeEl.hidden = !codeEl.hidden;
+      toggleEl.textContent = codeEl.hidden
+        ? 'Показать исходный LaTeX-код'
+        : 'Скрыть исходный LaTeX-код';
+    }
+    viewerOverlay.addEventListener('click', (e) => { if (e.target === viewerOverlay) closeViewer(); });
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') { closeViewer(); closeModal(); }
+    });
+
+    async function deleteAssignment(id) {
+      if (!confirm('Удалить задание?')) return;
+      const res = await fetch(`/assignments/${id}`, { method: 'DELETE' });
+      if (res.ok) {
+        showMessage('Задание удалено', true);
+        loadAssignments();
+      } else {
+        showMessage('Ошибка при удалении', false);
+      }
+    }
+
+    /* ---------- Чтение файла с заданиями на клиенте ---------- */
+    function readFileAsText(file) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(String(reader.result || ''));
+        reader.onerror = reject;
+        reader.readAsText(file, 'UTF-8');
+      });
+    }
+
+    formEl.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const data = new FormData(formEl);
+      if (!data.get('school_class').trim()) { showMessage('Укажите класс', false); return; }
+      if (!data.get('topic').trim()) { showMessage('Укажите тему', false); return; }
+
+      // Если выбран файл — читаем его и отправляем текстом (надёжно с кириллицей)
+      const mode = formEl.querySelector('input[name="source_mode"]:checked').value;
+      if (mode === 'file') {
+        const f = formEl.file.files[0];
+        if (!f) { showMessage('Выберите файл с заданиями', false); return; }
+        let text;
+        try { text = await readFileAsText(f); }
+        catch (err) { showMessage('Не удалось прочитать файл', false); return; }
+        data.set('latex_code', text);
+        data.delete('file');
+        formEl.querySelectorAll('[data-from-file]').forEach((el) => el.remove());
+      } else {
+        formEl.file.value = '';
+        data.delete('file');
+      }
+
+      if (!(data.get('latex_code') || '').trim()) {
+        showMessage('Добавьте LaTeX-код заданий', false); return;
+      }
+
+      const res = await fetch('/assignments/', { method: 'POST', body: data });
+      if (res.ok) {
+        const created = await res.json();
+        showMessage(created.length > 1
+          ? `Добавлено аналогов: ${created.length}`
+          : 'Задание добавлено', true);
+        closeModal();
+        loadAssignments();
+      } else {
+        const err = await res.json().catch(() => ({}));
+        showMessage(err.detail ? String(err.detail) : 'Ошибка при добавлении задания', false);
+      }
+    });
+
+    loadAssignments();
+
+    /* Панель управления группами: галочка + развернуть/свернуть все */
+    const groupToggleEl = document.getElementById('group-toggle');
+    try {
+      const saved = localStorage.getItem('tasks_group_mode');
+      if (saved !== null) groupToggleEl.checked = saved === '1';
+    } catch (e) {}
+    groupToggleEl.addEventListener('change', () => {
+      localStorage.setItem('tasks_group_mode', groupToggleEl.checked ? '1' : '0');
+      loadAssignments();
+    });
+    document.getElementById('btn-expand-all').addEventListener('click', () => setAllGroups(true));
+    document.getElementById('btn-collapse-all').addEventListener('click', () => setAllGroups(false));
+  </script>
+</body>
+</html>
