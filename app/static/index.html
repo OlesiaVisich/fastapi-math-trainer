@@ -50,6 +50,7 @@
     .form-row { display: flex; flex-direction: column; gap: 4px; margin-bottom: 14px; }
     .form-row label { font-size: 14px; font-weight: 600; color: var(--text); }
     .form-row input[type="text"],
+    .form-row select,
     .form-row textarea {
       padding: 8px 10px;
       border: 1px solid var(--border);
@@ -98,6 +99,16 @@
           <input type="text" id="topic" name="topic" required placeholder="Например: Квадратные уравнения">
         </div>
         <div class="form-row">
+          <label for="lesson_type">Тип урока *</label>
+          <select id="lesson_type" name="lesson_type" required>
+            <option value="" disabled selected>Выберите тип урока</option>
+            <option value="урок с презентацией">Урок с презентацией</option>
+            <option value="урок с листочком">Урок с листочком</option>
+            <option value="практическая/самостоятельная работа">Практическая/самостоятельная работа</option>
+            <option value="контрольная работа">Контрольная работа</option>
+          </select>
+        </div>
+        <div class="form-row">
           <label for="school_class">Класс (параллель) *</label>
           <input type="text" id="school_class" name="school_class" required placeholder="Например: 9">
         </div>
@@ -110,9 +121,9 @@
           <textarea id="homework" name="homework" placeholder="Номера упражнений, параграфы..."></textarea>
         </div>
         <div class="form-row">
-          <label for="tasks_pdf">Файл с задачами (PDF)</label>
-          <input type="file" id="tasks_pdf" name="tasks_pdf" accept=".pdf,application/pdf">
-          <span class="hint">Необязательно. Только формат PDF.</span>
+          <label for="files">Файлы к уроку</label>
+          <input type="file" id="files" name="files" multiple accept=".pdf,.pptx,application/pdf,application/vnd.openxmlformats-officedocument.presentationml.presentation">
+          <span class="hint">Необязательно. Можно выбрать несколько файлов форматов PDF и PPTX.</span>
         </div>
         <button type="submit">Создать урок</button>
       </form>

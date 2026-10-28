@@ -3,7 +3,7 @@ from sqlalchemy import inspect, text
 
 from app.database import engine, Base
 from app.models import (
-    User, Worksheet, Task, Lesson, TodoItem, Assignment, AssignmentGroup,
+    User, Worksheet, Task, Lesson, LessonFile, TodoItem, Assignment, AssignmentGroup,
 )
 
 print("Создаём таблицы...")
@@ -82,9 +82,11 @@ try:
         print("Добавляю тестовые уроки...")
         db.add_all([
             Lesson(topic="Квадратные уравнения", school_class="8А",
+                   lesson_type="урок с презентацией",
                    description="Теория и решение простейших квадратных уравнений.",
                    homework="§14, №235–240"),
             Lesson(topic="Линейные уравнения", school_class="9В",
+                   lesson_type="практическая/самостоятельная работа",
                    description="Повторение и отработка навыков решения.",
                    homework="№112, 115"),
         ])

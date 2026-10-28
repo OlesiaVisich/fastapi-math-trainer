@@ -68,6 +68,7 @@
     .lesson-top { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
     .lesson-topic { font-size: 17px; font-weight: 600; }
     .lesson-class { color: var(--muted); font-size: 14px; white-space: nowrap; }
+    .lesson-type { color: var(--primary-dark); font-size: 13px; margin-top: 2px; }
     .lesson-desc { margin-top: 8px; font-size: 14px; white-space: pre-wrap; }
     .lesson-hw { margin-top: 8px; font-size: 14px; }
     .lesson-hw b { color: var(--primary-dark); }
@@ -155,6 +156,14 @@
         <label style="display:block;font-size:14px;font-weight:600;margin:10px 0 4px;">Тема *</label>
         <input type="text" name="topic" required placeholder="Например: Квадратные уравнения"
                style="width:100%;padding:9px 11px;border:1px solid #dde4ec;border-radius:8px;font-size:14px;">
+        <label style="display:block;font-size:14px;font-weight:600;margin:10px 0 4px;">Тип урока</label>
+        <select name="lesson_type" style="width:100%;padding:9px 11px;border:1px solid #dde4ec;border-radius:8px;font-size:14px;background:#fff;">
+          <option value="">— не выбран —</option>
+          <option value="урок с презентацией">Урок с презентацией</option>
+          <option value="урок с листочком">Урок с листочком</option>
+          <option value="практическая/самостоятельная работа">Практическая/самостоятельная работа</option>
+          <option value="контрольная работа">Контрольная работа</option>
+        </select>
         <label style="display:block;font-size:14px;font-weight:600;margin:10px 0 4px;">Класс (параллель)</label>
         <input type="text" name="school_class" placeholder="Например: 8 или 9А"
                style="width:100%;padding:9px 11px;border:1px solid #dde4ec;border-radius:8px;font-size:14px;">
@@ -164,8 +173,8 @@
         <label style="display:block;font-size:14px;font-weight:600;margin:10px 0 4px;">Домашняя работа</label>
         <textarea name="homework" placeholder="Например: §14, №235–240"
                   style="width:100%;min-height:70px;padding:9px 11px;border:1px solid #dde4ec;border-radius:8px;font-size:14px;"></textarea>
-        <label style="display:block;font-size:14px;font-weight:600;margin:10px 0 4px;">Файл с задачами (PDF)</label>
-        <input type="file" name="tasks_pdf" accept=".pdf,application/pdf">
+        <label style="display:block;font-size:14px;font-weight:600;margin:10px 0 4px;">Файлы к уроку (PDF, PPTX; можно несколько)</label>
+        <input type="file" name="files" multiple accept=".pdf,.pptx,application/pdf,application/vnd.openxmlformats-officedocument.presentationml.presentation">
         <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:16px;">
           <button type="button" id="alt-cancel" style="border:none;border-radius:8px;padding:10px 18px;font-size:14px;cursor:pointer;background:#eef2f7;color:#22303e;">Отмена</button>
           <button type="submit" style="border:none;border-radius:8px;padding:10px 18px;font-size:14px;cursor:pointer;background:linear-gradient(135deg,#3b6ea5,#2fa36b);color:#fff;font-weight:600;">Создать урок</button>
@@ -183,14 +192,22 @@
       <form id="lesson-form">
         <label for="l-topic">Тема *</label>
         <input type="text" id="l-topic" name="topic" required placeholder="Например: Квадратные уравнения">
+        <label for="l-type">Тип урока</label>
+        <select id="l-type" name="lesson_type">
+          <option value="">— не выбран —</option>
+          <option value="урок с презентацией">Урок с презентацией</option>
+          <option value="урок с листочком">Урок с листочком</option>
+          <option value="практическая/самостоятельная работа">Практическая/самостоятельная работа</option>
+          <option value="контрольная работа">Контрольная работа</option>
+        </select>
         <label for="l-class">Класс (параллель)</label>
         <input type="text" id="l-class" name="school_class" placeholder="Например: 8 или 9А">
         <label for="l-desc">Описание</label>
         <textarea id="l-desc" name="description" placeholder="Текстовое описание урока"></textarea>
         <label for="l-hw">Домашняя работа</label>
         <textarea id="l-hw" name="homework" placeholder="Например: §14, №235–240"></textarea>
-        <label for="l-pdf">Файл с задачами (PDF)</label>
-        <input type="file" id="l-pdf" name="pdf_file" accept=".pdf,application/pdf">
+        <label for="l-files">Файлы к уроку (PDF, PPTX; можно несколько)</label>
+        <input type="file" id="l-files" name="files" multiple accept=".pdf,.pptx,application/pdf,application/vnd.openxmlformats-officedocument.presentationml.presentation">
         <div class="modal-actions">
           <button type="button" class="btn-cancel" id="btn-cancel">Отмена</button>
           <button type="submit" class="btn-save">Создать урок</button>
@@ -215,19 +232,33 @@
       return div.innerHTML;
     }
 
+    const TYPE_ICONS = {
+      'урок с презентацией': '📽',
+      'урок с листочком': '📄',
+      'практическая/самостоятельная работа': '✏️',
+      'контрольная работа': '📝',
+    };
+
+    function fileIcon(name) {
+      return String(name).toLowerCase().endsWith('.pptx') ? '📊' : '📎';
+    }
+
     function lessonCard(l, showClass) {
+      const files = l.files || [];
+      const links = files.length
+        ? files.map(f => `<a href="/lessons/${l.id}/files/${f.id}" download>${fileIcon(f.original_name)} ${escapeHtml(f.original_name)}</a>`).join(' ')
+        : '<span class="pdf-none">Файлы к уроку не прикреплены</span>';
       return `
         <div class="lesson">
           <div class="lesson-top">
             <div class="lesson-topic">${escapeHtml(l.topic)}</div>
             ${showClass ? `<div class="lesson-class">Класс: ${escapeHtml(l.school_class || '—')}</div>` : ''}
           </div>
+          ${l.lesson_type ? `<div class="lesson-type">${TYPE_ICONS[l.lesson_type] || '📚'} ${escapeHtml(l.lesson_type)}</div>` : ''}
           ${l.description ? `<div class="lesson-desc">${escapeHtml(l.description)}</div>` : ''}
           ${l.homework ? `<div class="lesson-hw"><b>Домашняя работа:</b> ${escapeHtml(l.homework)}</div>` : ''}
           <div class="lesson-footer">
-            ${l.pdf_filename
-              ? `<a href="/lessons/${l.id}/pdf" download>📎 Скачать задачи (PDF)</a>`
-              : '<span class="pdf-none">PDF с задачами не прикреплён</span>'}
+            ${links}
             <button class="btn-del" onclick="deleteLesson(${l.id})">Удалить</button>
           </div>
         </div>`;
@@ -320,17 +351,19 @@
       e.preventDefault();
       const data = new FormData(lessonForm);
       if (!data.get('topic').trim()) { showMessage('Укажите тему урока', false); return; }
-      const pdf = data.get('pdf_file');
-      if (pdf && pdf.name && !pdf.name.toLowerCase().endsWith('.pdf')) {
-        showMessage('Файл с задачами должен быть в формате PDF', false);
+      const files = data.getAll('files').filter(f => f && f.name);
+      const badExt = files.find(f => !/\.(pdf|pptx)$/i.test(f.name));
+      if (badExt) {
+        showMessage(`Файл «${badExt.name}»: допустимы только PDF и PPTX`, false);
         return;
       }
       const fd = new FormData();
       fd.append('topic', data.get('topic').trim());
+      fd.append('lesson_type', data.get('lesson_type') || '');
       fd.append('school_class', (data.get('school_class') || '').trim());
       fd.append('description', (data.get('description') || '').trim());
       fd.append('homework', (data.get('homework') || '').trim());
-      if (pdf && pdf.name) fd.append('tasks_pdf', pdf);
+      for (const f of files) fd.append('files', f);
 
       const res = await fetch('/lessons/', { method: 'POST', body: fd });
       if (res.ok) {

@@ -47,16 +47,40 @@ class Task(Base):
     order_index = Column(Integer, nullable=False)
     worksheet_id = Column(Integer, ForeignKey("worksheets.id"))
 
+LESSON_TYPES = [
+    "урок с презентацией",
+    "урок с листочком",
+    "практическая/самостоятельная работа",
+    "контрольная работа",
+]
+
+
+class LessonFile(Base):
+    """Файл, прикреплённый к уроку (PDF или PPTX)."""
+
+    __tablename__ = "lesson_files"
+    id = Column(Integer, primary_key=True, index=True)
+    lesson_id = Column(Integer, ForeignKey("lessons.id"), index=True)
+    stored_name = Column(String, nullable=False)
+    original_name = Column(String, nullable=False)
+    content_type = Column(String, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
 class Lesson(Base):
-    """Урок учителя: тема, описание, класс, домашняя работа, PDF с задачами."""
+    """Урок учителя: тип, тема, описание, класс, домашняя работа, файлы."""
 
     __tablename__ = "lessons"
     id = Column(Integer, primary_key=True, index=True)
     topic = Column(String, nullable=False)
+    lesson_type = Column(String, nullable=True, index=True)
     description = Column(Text, nullable=True)
     school_class = Column(String, nullable=True, index=True)
     homework = Column(Text, nullable=True)
-    pdf_filename = Column(String, nullable=True)
+    pdf_filename = Column(String, nullable=True)  # устаревшее: первый файл
+    files = relationship(
+        "LessonFile", backref="lesson", cascade="all, delete-orphan"
+    )
     created_at = Column(DateTime, default=datetime.utcnow)
     user_id = Column(Integer, ForeignKey("users.id"))
 

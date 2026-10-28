@@ -102,21 +102,36 @@ class LessonBase(BaseModel):
     """Базовая модель урока."""
 
     topic: str
+    lesson_type: Optional[str] = None
     description: Optional[str] = None
     school_class: Optional[str] = None
     homework: Optional[str] = None
 
 
+class LessonFileOut(BaseModel):
+    """Прикреплённый к уроку файл."""
+
+    id: int
+    original_name: str
+    content_type: Optional[str] = None
+
+    class Config:
+        """Конфигурация модели."""
+
+        from_attributes = True
+
+
 class LessonCreate(LessonBase):
-    """Создание урока (поля формы + опциональный PDF-файл)."""
+    """Создание урока (поля формы + опциональные файлы)."""
 
 
 class Lesson(LessonBase):
-    """Урок с ID, файлом задач и метаданными."""
+    """Урок с ID, прикреплёнными файлами и метаданными."""
 
     id: int
     user_id: Optional[int] = None
     pdf_filename: Optional[str] = None
+    files: List[LessonFileOut] = []
     created_at: datetime
 
     class Config:

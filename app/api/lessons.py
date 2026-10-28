@@ -1,4 +1,4 @@
-"""Эндпоинты для работы с уроками: создание, список, просмотр, удаление."""
+"""Эндпоинты для работы с уроками: создание, список, файлы, удаление."""
 import os
 import re
 import uuid
@@ -8,14 +8,22 @@ from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from fastapi.responses import FileResponse, RedirectResponse
 from sqlalchemy.orm import Session
 
-from app.config import settings
 from app.database import SessionLocal
+from app.models import LESSON_TYPES
 from app.models import Lesson as LessonModel
+from app.models import LessonFile
 from app.schemas import Lesson
 
 router = APIRouter()
 
 UPLOAD_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "uploads", "lessons")
+
+ALLOWED_EXTENSIONS = {".pdf", ".pptx"}
+CONTENT_TYPES = {
+    ".pdf": "application/pdf",
+    ".pptx": "application/vnd.openxmlformats-officedocument."
+             "presentationml.presentation",
+}
 
 
 def get_db():
@@ -27,11 +35,32 @@ def get_db():
         db.close()
 
 
-def _save_pdf(file: UploadFile) -> str:
-    """Сохраняет PDF-файл с задачами на диск и возвращает имя сохранённого файла."""
-    if not file.filename.lower().endswith(".pdf"):
+def _validate_lesson_type(lesson_type: Optional[str]) -> Optional[str]:
+    """Проверяет, что тип урока входит в допустимый список."""
+    value = (lesson_type or "").strip().lower()
+    if not value:
+        return None
+    if value not in LESSON_TYPES:
         raise HTTPException(
-            status_code=400, detail="Файл с задачами должен быть в формате PDF"
+            status_code=400,
+            detail=(
+                "Недопустимый тип урока. Выберите один из: "
+                + ", ".join(LESSON_TYPES)
+            ),
+        )
+    return value
+
+
+def _save_file(file: UploadFile) -> dict:
+    """Сохраняет файл урока (PDF или PPTX) на диск.
+
+    Возвращает словарь с данными для записи в таблицу lesson_files.
+    """
+    ext = os.path.splitext(file.filename or "")[1].lower()
+    if ext not in ALLOWED_EXTENSIONS:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Допустимы только файлы PDF и PPTX, получен формат: {ext or 'без расширения'}",
         )
     os.makedirs(UPLOAD_DIR, exist_ok=True)
     safe_name = re.sub(r"[^A-Za-z0-9._-]", "_", file.filename)
@@ -39,27 +68,58 @@ def _save_pdf(file: UploadFile) -> str:
     path = os.path.join(UPLOAD_DIR, stored_name)
     with open(path, "wb") as f:
         f.write(file.file.read())
-    return stored_name
+    return {
+        "stored_name": stored_name,
+        "original_name": file.filename,
+        "content_type": CONTENT_TYPES.get(ext, file.content_type),
+    }
+
+
+def _attach_files(lesson: LessonModel, files: List[UploadFile]):
+    """Сохраняет переданные файлы и привязывает их к уроку."""
+    for file in files or []:
+        if not file or not file.filename:
+            continue
+        data = _save_file(file)
+        lesson.files.append(LessonFile(**data))
+        # Совместимость со старым полем: первый PDF дублируется в pdf_filename
+        if not lesson.pdf_filename and data["stored_name"].lower().endswith(".pdf"):
+            lesson.pdf_filename = data["stored_name"]
+
+
+@router.get("/types")
+def list_lesson_types():
+    """Возвращает допустимые типы уроков для выпадающего списка."""
+    return {"types": LESSON_TYPES}
 
 
 @router.post("/", response_model=Lesson)
 def create_lesson(
     topic: str = Form(...),
+    lesson_type: Optional[str] = Form(None),
     description: Optional[str] = Form(None),
     school_class: Optional[str] = Form(None),
     homework: Optional[str] = Form(None),
     tasks_pdf: Optional[UploadFile] = File(None),
+    files: List[UploadFile] = File(default=[]),
     db: Session = Depends(get_db),
 ):
-    """Создаёт урок: тема, текстовое описание, класс, домашняя работа, PDF с задачами."""
+    """Создаёт урок: тип, тема, описание, класс, домашняя работа, файлы (PDF/PPTX).
+
+    Можно передать несколько файлов через поле `files`; поле `tasks_pdf`
+    оставлено для обратной совместимости.
+    """
     lesson = LessonModel(
-        topic=topic,
-        description=description,
+        topic=topic.strip(),
+        lesson_type=_validate_lesson_type(lesson_type),
+        description=(description or "").strip() or None,
         school_class=(school_class or "").strip() or None,
-        homework=homework,
+        homework=(homework or "").strip() or None,
     )
+    upload_list = [f for f in (files or []) if f and f.filename]
     if tasks_pdf and tasks_pdf.filename:
-        lesson.pdf_filename = _save_pdf(tasks_pdf)
+        upload_list.insert(0, tasks_pdf)
+    _attach_files(lesson, upload_list)
     db.add(lesson)
     db.commit()
     db.refresh(lesson)
@@ -69,10 +129,12 @@ def create_lesson(
 @router.post("/create", include_in_schema=False)
 def create_lesson_form(
     topic: str = Form(""),
+    lesson_type: Optional[str] = Form(None),
     description: Optional[str] = Form(None),
     school_class: Optional[str] = Form(None),
     homework: Optional[str] = Form(None),
     tasks_pdf: Optional[UploadFile] = File(None),
+    files: List[UploadFile] = File(default=[]),
     db: Session = Depends(get_db),
 ):
     """Создание урока из обычной HTML-формы (работает без JavaScript).
@@ -83,12 +145,15 @@ def create_lesson_form(
         raise HTTPException(status_code=400, detail="Укажите тему урока")
     lesson = LessonModel(
         topic=topic.strip(),
+        lesson_type=_validate_lesson_type(lesson_type),
         description=(description or "").strip() or None,
         school_class=(school_class or "").strip() or None,
         homework=(homework or "").strip() or None,
     )
+    upload_list = [f for f in (files or []) if f and f.filename]
     if tasks_pdf and tasks_pdf.filename:
-        lesson.pdf_filename = _save_pdf(tasks_pdf)
+        upload_list.insert(0, tasks_pdf)
+    _attach_files(lesson, upload_list)
     db.add(lesson)
     db.commit()
     return RedirectResponse(url="/lessons-page", status_code=303)
@@ -97,17 +162,20 @@ def create_lesson_form(
 @router.get("/", response_model=List[Lesson])
 def list_lessons(
     school_class: Optional[str] = None,
+    lesson_type: Optional[str] = None,
     skip: int = 0,
     limit: int = 100,
     db: Session = Depends(get_db),
 ):
     """Получает список уроков (раздел «Мои уроки»), новые сверху.
 
-    Параметр school_class фильтрует уроки по классу.
+    Параметры school_class и lesson_type фильтруют уроки по классу и типу.
     """
     query = db.query(LessonModel)
     if school_class:
         query = query.filter(LessonModel.school_class == school_class)
+    if lesson_type:
+        query = query.filter(LessonModel.lesson_type == lesson_type.lower())
     return query.order_by(LessonModel.id.desc()).offset(skip).limit(limit).all()
 
 
@@ -132,26 +200,79 @@ def read_lesson(lesson_id: int, db: Session = Depends(get_db)):
     return lesson
 
 
-@router.get("/{lesson_id}/pdf")
-def download_lesson_pdf(lesson_id: int, db: Session = Depends(get_db)):
-    """Скачивает PDF-файл с задачами урока."""
+@router.get("/{lesson_id}/files")
+def list_lesson_files(lesson_id: int, db: Session = Depends(get_db)):
+    """Возвращает список прикреплённых файлов урока."""
     lesson = db.query(LessonModel).filter(LessonModel.id == lesson_id).first()
     if lesson is None:
         raise HTTPException(status_code=404, detail="Урок не найден")
-    if not lesson.pdf_filename:
-        raise HTTPException(status_code=404, detail="PDF-файл к уроку не прикреплён")
-    path = os.path.join(UPLOAD_DIR, lesson.pdf_filename)
+    return {
+        "files": [
+            {
+                "id": f.id,
+                "name": f.original_name,
+                "content_type": f.content_type,
+            }
+            for f in lesson.files
+        ]
+    }
+
+
+@router.get("/{lesson_id}/files/{file_id}")
+def download_lesson_file(
+    lesson_id: int, file_id: int, db: Session = Depends(get_db)
+):
+    """Скачивает прикреплённый к уроку файл (PDF или PPTX)."""
+    record = (
+        db.query(LessonFile)
+        .filter(LessonFile.id == file_id, LessonFile.lesson_id == lesson_id)
+        .first()
+    )
+    if record is None:
+        raise HTTPException(status_code=404, detail="Файл не найден")
+    path = os.path.join(UPLOAD_DIR, record.stored_name)
     if not os.path.exists(path):
         raise HTTPException(status_code=404, detail="Файл не найден на диске")
-    return FileResponse(path, media_type="application/pdf", filename=lesson.pdf_filename)
+    return FileResponse(
+        path, media_type=record.content_type, filename=record.original_name
+    )
+
+
+@router.get("/{lesson_id}/pdf")
+def download_lesson_pdf(lesson_id: int, db: Session = Depends(get_db)):
+    """Скачивает первый PDF-файл урока (обратная совместимость со старой ссылкой)."""
+    lesson = db.query(LessonModel).filter(LessonModel.id == lesson_id).first()
+    if lesson is None:
+        raise HTTPException(status_code=404, detail="Урок не найден")
+    pdf_file = next(
+        (f for f in lesson.files if f.original_name.lower().endswith(".pdf")), None
+    )
+    if pdf_file is None and lesson.pdf_filename:
+        path = os.path.join(UPLOAD_DIR, lesson.pdf_filename)
+        if os.path.exists(path):
+            return FileResponse(path, media_type="application/pdf",
+                                filename=lesson.pdf_filename)
+        raise HTTPException(status_code=404, detail="Файл не найден на диске")
+    if pdf_file is None:
+        raise HTTPException(status_code=404, detail="PDF-файл к уроку не прикреплён")
+    path = os.path.join(UPLOAD_DIR, pdf_file.stored_name)
+    if not os.path.exists(path):
+        raise HTTPException(status_code=404, detail="Файл не найден на диске")
+    return FileResponse(
+        path, media_type="application/pdf", filename=pdf_file.original_name
+    )
 
 
 @router.delete("/{lesson_id}")
 def delete_lesson(lesson_id: int, db: Session = Depends(get_db)):
-    """Удаляет урок вместе с прикреплённым PDF-файлом."""
+    """Удаляет урок вместе с прикреплёнными файлами."""
     lesson = db.query(LessonModel).filter(LessonModel.id == lesson_id).first()
     if lesson is None:
         raise HTTPException(status_code=404, detail="Урок не найден")
+    for record in list(lesson.files):
+        path = os.path.join(UPLOAD_DIR, record.stored_name)
+        if os.path.exists(path):
+            os.remove(path)
     if lesson.pdf_filename:
         path = os.path.join(UPLOAD_DIR, lesson.pdf_filename)
         if os.path.exists(path):
