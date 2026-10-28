@@ -69,13 +69,41 @@
       transition: border-color .15s ease, background .15s ease;
       font-family: Georgia, "Times New Roman", serif;
     }
-    .sheet.drag-over { border-color: var(--primary); background: #f2f8ff; }
+    .sheet.drag-over { border: 2px dashed var(--primary) !important; background: #f2f8ff; }
+    /* ---------- Рамка страницы (по самому краю листа) ---------- */
+    .sheet.border-none     { border: none; }
+    .sheet.border-solid    { border: 1px solid var(--border-color, #555); border-radius: 0; }
+    .sheet.border-dashed   { border: 1px dashed var(--border-color, #555); border-radius: 0; }
+    .sheet.border-dotted   { border: 1px dotted var(--border-color, #555); border-radius: 0; }
+    .sheet.border-double   { border: 3px double var(--border-color, #555); border-radius: 0; }
+    .sheet.border-rounded  { border: 1px solid var(--border-color, #555); border-radius: 18px; }
+    .sheet.border-round-dash { border: 1px dashed var(--border-color, #555); border-radius: 18px; }
+    /* ---------- Маркеры номеров заданий ---------- */
+    .num-badge {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 22px;
+      height: 22px;
+      padding: 0 4px;
+      box-sizing: border-box;
+      font-weight: 700;
+      font-size: 13px;
+      line-height: 1;
+      border: 1px solid var(--num-border, #666);
+      color: #111;
+      font-family: "Segoe UI", Arial, sans-serif;
+    }
+    .num-circle { border-radius: 50%; }
+    .num-square { border-radius: 4px; }
+    .num-plain  { border: none; min-width: auto; height: auto; padding: 0; }
     .sheet-title-input {
       width: 100%;
       border: none;
       outline: none;
       font-family: inherit;
       font-size: 20px;
+      font-style: italic;
       font-weight: 700;
       text-align: center;
       padding: 4px 0;
@@ -84,8 +112,16 @@
     .sheet-name-row {
       text-align: center;
       font-size: 15px;
-      margin: 10px 0 6px;
+      margin: 10px auto 6px;
       color: #333;
+      width: fit-content;
+      max-width: 100%;
+      padding: 3px 14px;
+      border: 1px solid transparent;
+      border-radius: 6px;
+    }
+    .sheet-name-row.in-frame {
+      border-color: var(--border-color, #555);
     }
     .sheet-name-input {
       border: none;
@@ -438,7 +474,16 @@
       header, .panel, .sheet-toolbar, .item-remove, .sheet-empty-hint, .task-actions, .task-card .title-meta { display: none !important; }
       .layout { display: block; margin: 0; padding: 0; max-width: none; }
       .sheet-wrap { position: static; }
-      .sheet { box-shadow: none; border: none; max-width: none; padding: 0; min-height: auto; }
+      .sheet { box-shadow: none; max-width: none; padding: 0; min-height: auto; border: none; }
+      /* рамка страницы при печати идёт по самому краю листа */
+      @page { margin: 8mm; }
+      .sheet.border-none     { border: none !important; }
+      .sheet.border-solid    { border: 1px solid var(--border-color, #555) !important; border-radius: 0; }
+      .sheet.border-dashed   { border: 1px dashed var(--border-color, #555) !important; border-radius: 0; }
+      .sheet.border-dotted   { border: 1px dotted var(--border-color, #555) !important; border-radius: 0; }
+      .sheet.border-double   { border: 3px double var(--border-color, #555) !important; border-radius: 0; }
+      .sheet.border-rounded  { border: 1px solid var(--border-color, #555) !important; border-radius: 18px; }
+      .sheet.border-round-dash { border: 1px dashed var(--border-color, #555) !important; border-radius: 18px; }
       .sheet-title-input, .sheet-name-input { border: none; }
     }
   </style>
@@ -518,6 +563,52 @@
             <label class="hs-check"><input type="checkbox" id="hs-points" /> Поле для баллов у каждого задания</label>
             <label class="hs-check"><input type="checkbox" id="hs-grade" /> Итоговая оценка на листе</label>
           </div>
+        </div>
+        <!-- Дизайн листа: рамки, номера заданий -->
+        <div class="head-settings">
+          <h3>🎨 Дизайн листа</h3>
+          <div class="hs-row">
+            <span class="hs-label">Рамка страницы:</span>
+            <select class="hs-input" id="ds-border" style="flex:0 0 auto; min-width: 240px;">
+              <option value="none">Без рамки</option>
+              <option value="solid">Тонкая сплошная линия</option>
+              <option value="dashed">Пунктир</option>
+              <option value="dotted">Точки</option>
+              <option value="double">Двойная линия</option>
+              <option value="rounded">Сплошная, скруглённые углы</option>
+              <option value="round-dash">Пунктир, скруглённые углы</option>
+            </select>
+          </div>
+          <div class="hs-row">
+            <span class="hs-label">Цвет рамки:</span>
+            <select class="hs-input" id="ds-border-color" style="flex:0 0 auto; min-width: 240px;">
+              <option value="#111111">Очень тёмный серый</option>
+              <option value="#555555" selected>Тёмно-серый</option>
+              <option value="#777777">Серый</option>
+              <option value="#999999">Средне-серый</option>
+              <option value="#bbbbbb">Светло-серый</option>
+              <option value="#dddddd">Очень светлый серый</option>
+            </select>
+          </div>
+          <div class="hs-row">
+            <span class="hs-label">Номера заданий:</span>
+            <select class="hs-input" id="ds-num-shape" style="flex:0 0 auto; min-width: 240px;">
+              <option value="plain">Обычные (без рамки)</option>
+              <option value="circle" selected>В кружочке</option>
+              <option value="square">В квадратике</option>
+            </select>
+          </div>
+          <div class="hs-row">
+            <span class="hs-label">Заливка номеров:</span>
+            <select class="hs-input" id="ds-num-fill" style="flex:0 0 auto; min-width: 240px;">
+              <option value="" selected>Без заливки (белые)</option>
+              <option value="#f2f2f2">Очень светлая серая</option>
+              <option value="#e0e0e0">Светло-серая</option>
+              <option value="#c9c9c9">Серая</option>
+              <option value="#a6a6a6">Средне-серая</option>
+              <option value="#808080">Тёмно-серая</option>
+            </select>
+          </div>
           <p class="hs-hint">Изменения сохраняются автоматически и видны на листе сразу. Панель настроек не попадает в печать/PDF.</p>
         </div>
         <div class="filters">
@@ -558,6 +649,35 @@
     const gradeChk = document.getElementById('hs-grade');
     const titleTextEl = document.getElementById('sheet-title-text');
     const nameRowEl = document.getElementById('sheet-name-row');
+    /* ---------- Элементы дизайна листа ---------- */
+    const borderSel = document.getElementById('ds-border');
+    const borderColorSel = document.getElementById('ds-border-color');
+    const numShapeSel = document.getElementById('ds-num-shape');
+    const numFillSel = document.getElementById('ds-num-fill');
+    const BORDER_CLASSES = ['border-none', 'border-solid', 'border-dashed', 'border-dotted',
+                            'border-double', 'border-rounded', 'border-round-dash'];
+
+    function applySheetDesign() {
+      sheetEl.classList.remove(...BORDER_CLASSES);
+      sheetEl.classList.add('border-' + borderSel.value);
+      sheetEl.style.setProperty('--border-color', borderColorSel.value);
+      // подпись ученика — в тонкой рамке в том же стиле/цвете (если включена)
+      nameRowEl.classList.toggle('in-frame', borderSel.value !== 'none');
+    }
+
+    // HTML маркера номера задания с учётом выбранных стиля и заливки
+    function numBadgeHtml(n) {
+      const shape = numShapeSel.value;
+      const fill = numFillSel.value;
+      if (shape === 'plain') {
+        return `<span class="num-badge num-plain">${n}.</span>`;
+      }
+      const cls = shape === 'square' ? 'num-square' : 'num-circle';
+      const style = fill
+        ? `background:${fill};--num-border:${fill};`
+        : `--num-border:${borderColorSel.value};`;
+      return `<span class="num-badge ${cls}" style="${style}">${n}</span>`;
+    }
     const scoreRowEl = document.getElementById('sheet-score-row');
     let nameInput = document.getElementById('sheet-name');
     const taskListEl = document.getElementById('task-list');
@@ -664,6 +784,10 @@
         name_style: nameStyleSel.value,
         points: pointsChk.checked,
         grade: gradeChk.checked,
+        border: borderSel.value,
+        border_color: borderColorSel.value,
+        num_shape: numShapeSel.value,
+        num_fill: numFillSel.value,
       }));
       savedName = nameInput ? nameInput.value : savedName;
     }
@@ -678,8 +802,13 @@
         if (data.name_style && NAME_LABELS[data.name_style] !== undefined) nameStyleSel.value = data.name_style;
         pointsChk.checked = !!data.points;
         gradeChk.checked = !!data.grade;
+        if (data.border) borderSel.value = data.border;
+        if (data.border_color) borderColorSel.value = data.border_color;
+        if (data.num_shape) numShapeSel.value = data.num_shape;
+        if (typeof data.num_fill === 'string') numFillSel.value = data.num_fill;
       } catch (e) { /* ignore */ }
       applyHeaderSettings();
+      applySheetDesign();
     }
 
     /* ---------- Рендер панели заданий ---------- */
@@ -944,7 +1073,7 @@
         div.innerHTML = `
           <div class="item-head">
             <div class="item-head-row">
-              <span class="item-num">${idx + 1}.</span>
+              ${numBadgeHtml(idx + 1)}
               ${pointsHtml}
             </div>
           </div>
@@ -1203,6 +1332,10 @@
     nameStyleSel.addEventListener('change', () => { applyHeaderSettings(); saveSheet(); });
     pointsChk.addEventListener('change', () => { saveSheet(); renderSheet(); });
     gradeChk.addEventListener('change', () => { applyHeaderSettings(); saveSheet(); });
+    borderSel.addEventListener('change', () => { applySheetDesign(); saveSheet(); renderSheet(); });
+    borderColorSel.addEventListener('change', () => { applySheetDesign(); saveSheet(); renderSheet(); });
+    numShapeSel.addEventListener('change', () => { saveSheet(); renderSheet(); });
+    numFillSel.addEventListener('change', () => { saveSheet(); renderSheet(); });
 
     /* ---------- Загрузка данных ---------- */
     async function init() {
