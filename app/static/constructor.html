@@ -154,6 +154,27 @@
       font-family: "Segoe UI", Arial, sans-serif;
     }
     .head-settings h3 { margin: 0 0 10px; font-size: 15px; color: var(--text); }
+    /* Сворачиваемые секции «Шапка работы» и «Дизайн листа» */
+    .head-settings.collapsible { padding: 10px 16px; }
+    .sec-toggle {
+      cursor: pointer;
+      user-select: none;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin: 0 !important;
+      padding: 2px 0;
+    }
+    .sec-toggle:hover { color: var(--primary); }
+    .sec-arrow {
+      display: inline-block;
+      font-size: 12px;
+      transition: transform .15s ease;
+      color: var(--muted);
+    }
+    .collapsible.open .sec-arrow { transform: rotate(90deg); }
+    .collapsible:not(.open) .sec-body { display: none; }
+    .collapsible:not(.open) .sec-toggle { margin-bottom: 0 !important; }
     .hs-row { display: flex; gap: 10px; align-items: center; margin-bottom: 10px; flex-wrap: wrap; }
     .hs-label { font-size: 13px; color: var(--muted); min-width: 110px; }
     .hs-input {
@@ -268,6 +289,10 @@
       color: #111;
     }
     .item-body.latex-doc p { margin: 4px 0; }
+    /* Общий размер шрифта заданий на листе (настройка в «Дизайне листа»):
+       переопределяет базовые 14px; формулы наследуют его (font-size:100%) */
+    #sheet-items.sized .item-body.latex-doc { font-size: var(--task-font-size, 14px); }
+    #sheet-items.sized .sheet-item { font-size: var(--task-font-size, 14px); }
     mjx-container {
       font-size: 100% !important;   /* формулы того же кегля, что и текст */
       margin: 2px 0 !important;
@@ -561,9 +586,12 @@
         <button class="panel-toggle" id="panel-toggle-btn" title="Свернуть панель, чтобы лист стал шире">▶ Свернуть</button>
       </div>
       <div class="panel-body" id="panel-body">
-        <!-- Настройки шапки работы: применяются к листу слева -->
-        <div class="head-settings">
-          <h3>⚙️ Шапка работы</h3>
+        <!-- Настройки шапки работы: применяются к листу слева (сворачиваемая секция) -->
+        <div class="head-settings collapsible open" id="sec-header">
+          <h3 class="sec-toggle" data-target="sec-header" title="Нажмите, чтобы свернуть или развернуть">
+            <span class="sec-arrow">▸</span> ⚙️ Шапка работы
+          </h3>
+          <div class="sec-body">
           <div class="hs-row">
             <span class="hs-label">Заголовок:</span>
             <input class="hs-input" id="hs-title" placeholder="Например: Контрольная работа №2 по алгебре" />
@@ -582,10 +610,14 @@
             <label class="hs-check"><input type="checkbox" id="hs-points" /> Поле для баллов у каждого задания</label>
             <label class="hs-check"><input type="checkbox" id="hs-grade" /> Итоговая оценка на листе</label>
           </div>
+          </div><!-- /sec-body -->
         </div>
-        <!-- Дизайн листа: рамки, номера заданий -->
-        <div class="head-settings">
-          <h3>🎨 Дизайн листа</h3>
+        <!-- Дизайн листа: рамки, номера заданий (сворачиваемая секция) -->
+        <div class="head-settings collapsible open" id="sec-design">
+          <h3 class="sec-toggle" data-target="sec-design" title="Нажмите, чтобы свернуть или развернуть">
+            <span class="sec-arrow">▸</span> 🎨 Дизайн листа
+          </h3>
+          <div class="sec-body">
           <div class="hs-row">
             <span class="hs-label">Рамка страницы:</span>
             <select class="hs-input" id="ds-border" style="flex:0 0 auto; min-width: 240px;">
@@ -631,7 +663,21 @@
               <option value="#808080">Тёмно-серая</option>
             </select>
           </div>
+          <div class="hs-row">
+            <span class="hs-label">Размер шрифта заданий:</span>
+            <select class="hs-input" id="ds-task-font" style="flex:0 0 auto; min-width: 240px;" title="Применяется ко всем заданиям на листе">
+              <option value="">Обычный (14 px)</option>
+              <option value="10">10 px — очень мелкий</option>
+              <option value="11">11 px — мелкий</option>
+              <option value="12">12 px</option>
+              <option value="14">14 px — стандартный</option>
+              <option value="16">16 px — крупный</option>
+              <option value="18">18 px</option>
+              <option value="20">20 px — очень крупный</option>
+            </select>
+          </div>
           <p class="hs-hint">Изменения сохраняются автоматически и видны на листе сразу. Панель настроек не попадает в печать/PDF.</p>
+          </div><!-- /sec-body -->
         </div>
         <div class="filters">
         <div>
@@ -677,6 +723,8 @@
     const nameFrameChk = document.getElementById('ds-name-frame');
     const numShapeSel = document.getElementById('ds-num-shape');
     const numFillSel = document.getElementById('ds-num-fill');
+    const taskFontSel = document.getElementById('ds-task-font');
+    const itemsWrapEl = document.getElementById('sheet-items');
     const BORDER_CLASSES = ['border-none', 'border-solid', 'border-dashed', 'border-dotted',
                             'border-double', 'border-rounded', 'border-round-dash'];
 
@@ -690,6 +738,14 @@
       nameRowEl.classList.toggle('name-rounded',
         borderSel.value === 'rounded' || borderSel.value === 'round-dash');
       nameRowEl.style.setProperty('--name-border-color', borderColorSel.value);
+      // общий размер шрифта заданий на листе (пусто = базовые 14px)
+      if (taskFontSel.value) {
+        itemsWrapEl.classList.add('sized');
+        itemsWrapEl.style.setProperty('--task-font-size', taskFontSel.value + 'px');
+      } else {
+        itemsWrapEl.classList.remove('sized');
+        itemsWrapEl.style.removeProperty('--task-font-size');
+      }
     }
 
     // HTML маркера номера задания с учётом выбранных стиля и заливки
@@ -728,6 +784,31 @@
     panelToggleBtn.addEventListener('click', () => setPanelHidden(true));
     panelRestoreBtn.addEventListener('click', () => setPanelHidden(false));
     if (localStorage.getItem(PANEL_HIDDEN_KEY) === '1') setPanelHidden(true);
+
+    /* ---------- Сворачивание секций «Шапка работы» / «Дизайн листа» ---------- */
+    const SECTIONS_KEY = 'workshop_sections_v1';
+    function loadSectionStates() {
+      try {
+        const st = JSON.parse(localStorage.getItem(SECTIONS_KEY) || '{}');
+        document.querySelectorAll('.head-settings.collapsible').forEach(sec => {
+          if (st[sec.id] === false) sec.classList.remove('open');
+        });
+      } catch (e) { /* ignore */ }
+    }
+    function saveSectionStates() {
+      const st = {};
+      document.querySelectorAll('.head-settings.collapsible').forEach(sec => {
+        st[sec.id] = sec.classList.contains('open');
+      });
+      localStorage.setItem(SECTIONS_KEY, JSON.stringify(st));
+    }
+    document.querySelectorAll('.sec-toggle').forEach(btn => {
+      btn.addEventListener('click', () => {
+        btn.closest('.collapsible').classList.toggle('open');
+        saveSectionStates();
+      });
+    });
+    loadSectionStates();
 
     /* ---------- sanitization for saved rich HTML ---------- */
     const ALLOWED_TAGS = new Set(['B', 'STRONG', 'I', 'EM', 'U', 'BR', 'P', 'SPAN', 'FONT']);
@@ -816,6 +897,7 @@
         name_frame: nameFrameChk.checked,
         num_shape: numShapeSel.value,
         num_fill: numFillSel.value,
+        task_font: taskFontSel.value,
       }));
       savedName = nameInput ? nameInput.value : savedName;
     }
@@ -835,6 +917,7 @@
         nameFrameChk.checked = !!data.name_frame;
         if (data.num_shape) numShapeSel.value = data.num_shape;
         if (typeof data.num_fill === 'string') numFillSel.value = data.num_fill;
+        if (typeof data.task_font === 'string') taskFontSel.value = data.task_font;
       } catch (e) { /* ignore */ }
       applyHeaderSettings();
       applySheetDesign();
@@ -1366,6 +1449,7 @@
     borderColorSel.addEventListener('change', () => { applySheetDesign(); saveSheet(); renderSheet(); });
     numShapeSel.addEventListener('change', () => { saveSheet(); renderSheet(); });
     numFillSel.addEventListener('change', () => { saveSheet(); renderSheet(); });
+    taskFontSel.addEventListener('change', () => { applySheetDesign(); saveSheet(); });
 
     /* ---------- Загрузка данных ---------- */
     async function init() {
