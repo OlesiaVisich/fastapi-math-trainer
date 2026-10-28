@@ -3,6 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="build" content="2026-10-28-a">
   <title>Кабинет учителя — Мои уроки</title>
   <style>
     :root {
@@ -267,7 +268,14 @@
       overlay.classList.remove('open');
     }
 
-    document.getElementById('btn-new-lesson').addEventListener('click', openModal);
+    (function bindNewLessonBtn() {
+      const btn = document.getElementById('btn-new-lesson');
+      if (!btn) return;
+      btn.addEventListener('click', function (ev) {
+        ev.preventDefault();
+        openModal();
+      });
+    })();
     document.getElementById('btn-cancel').addEventListener('click', closeModal);
     overlay.addEventListener('click', (e) => { if (e.target === overlay) closeModal(); });
     document.addEventListener('keydown', (e) => {
@@ -307,6 +315,11 @@
     });
 
     loadLessons();
+
+    // Автоткрытие формы по ссылке вида /lessons-page?new=1
+    try {
+      if (new URLSearchParams(location.search).get('new') === '1') openModal();
+    } catch {}
   </script>
 </body>
 </html>
