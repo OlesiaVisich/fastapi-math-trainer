@@ -30,19 +30,18 @@
     nav a.active, nav a:hover { opacity: 1; font-weight: 600; }
 
     .layout {
-      display: grid;
-      grid-template-columns: minmax(420px, 1fr) minmax(320px, 460px);
+      display: flex;
       gap: 20px;
       max-width: 1400px;
       margin: 20px auto;
       padding: 0 16px;
-      align-items: start;
+      align-items: flex-start;
     }
-    @media (max-width: 1000px) { .layout { grid-template-columns: 1fr; } }
+    @media (max-width: 1000px) { .layout { flex-direction: column; } }
 
     /* ---------- Лист А4 ---------- */
     .sheet-wrap { position: sticky; top: 16px; }
-    .sheet-toolbar { display: flex; gap: 10px; margin-bottom: 10px; flex-wrap: wrap; }
+    .sheet-toolbar { display: flex; gap: 10px; margin-bottom: 10px; flex-wrap: wrap; align-items: center; }
     .btn-tool {
       border: 1px solid var(--border);
       background: var(--card);
@@ -127,6 +126,17 @@
     /* баллы и оценка на листе */
     .item-head-row { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; }
     .item-points { font-size: 13px; color: #555; white-space: nowrap; }
+    .points-input {
+      width: 42px;
+      padding: 1px 4px;
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      font-size: 13px;
+      text-align: center;
+      font-family: "Segoe UI", Arial, sans-serif;
+    }
+    .points-input:focus { outline: 2px solid var(--primary); border-color: transparent; }
+    @media print { .points-input { border-color: transparent; } }
     .sheet-score-row {
       text-align: right;
       font-size: 15px;
@@ -134,7 +144,28 @@
       padding-top: 10px;
       border-top: 1px solid #ddd;
     }
-    @media print { .head-settings { display: none !important; } }
+    @media print { .head-settings, .panel-toggle, .panel-restore { display: none !important; } }
+    /* ---------- Сворачивание правой панели ---------- */
+    .panel-toggle {
+      border: 1px solid var(--border);
+      background: var(--card);
+      color: var(--primary-dark);
+      border-radius: 8px;
+      padding: 7px 12px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+    .panel-toggle:hover { background: #eef2f7; }
+    .panel-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 12px; }
+    .panel-head h2 { margin-bottom: 0; }
+    .panel.collapsed .panel-body { display: none; }
+    .panel.collapsed .panel-head h2 { display: none; }
+    .panel.collapsed { width: auto; min-width: 54px; padding: 12px 10px; }
+    .panel-restore { display: none; }
+    body.panel-hidden .panel { display: none; }
+    body.panel-hidden .panel-restore { display: inline-flex; }
     .sheet-empty-hint {
       color: #9aa8b8;
       text-align: center;
@@ -255,13 +286,21 @@
       margin-left: 6px;
     }
 
-    /* ---------- Панель заданий ---------- */
+    /* ---------- Панель заданий (справа) + настройки шапки ---------- */
     .panel {
       background: var(--card);
       border: 1px solid var(--border);
       border-radius: 10px;
       padding: 16px;
+      width: 420px;
+      flex: 0 0 auto;
+      order: 2;
+      max-height: 92vh;
+      overflow-y: auto;
+      position: sticky;
+      top: 16px;
     }
+    .sheet-wrap { order: 1; flex: 1 1 auto; min-width: 0; }
     .panel h2 { font-size: 18px; margin-bottom: 12px; }
     .filters { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 14px; }
     .filters label { font-size: 12px; color: var(--muted); display: block; margin-bottom: 3px; }
@@ -439,29 +478,7 @@
       <div class="sheet-toolbar">
         <button class="btn-tool primary" onclick="printSheet()">🖨 Печать / PDF</button>
         <button class="btn-tool danger" onclick="clearSheet()">Очистить лист</button>
-      </div>
-      <!-- Настройки шапки работы: применяются к листу ниже -->
-      <div class="head-settings">
-        <h3>⚙️ Шапка работы</h3>
-        <div class="hs-row">
-          <span class="hs-label">Заголовок:</span>
-          <input class="hs-input" id="hs-title" placeholder="Например: Контрольная работа №2 по алгебре" />
-        </div>
-        <div class="hs-row">
-          <span class="hs-label">Подпись ученика:</span>
-          <select class="hs-input" id="hs-name-style" style="flex:0 0 auto; min-width: 260px;">
-            <option value="fam_name">Фамилия, имя: ______</option>
-            <option value="fam">Фамилия: ______</option>
-            <option value="name">Имя: ______</option>
-            <option value="fam_name_class">Фамилия, имя, класс: ______</option>
-            <option value="none">Без подписи</option>
-          </select>
-        </div>
-        <div class="hs-checks">
-          <label class="hs-check"><input type="checkbox" id="hs-points" /> Поле для баллов у каждого задания</label>
-          <label class="hs-check"><input type="checkbox" id="hs-grade" /> Итоговая оценка на листе</label>
-        </div>
-        <p class="hs-hint">Изменения сохраняются автоматически и видны на листе сразу. Панель настроек не попадает в печать/PDF.</p>
+        <button class="btn-tool panel-restore" id="panel-restore-btn" title="Показать панель заданий и настроек">📚 Показать задания</button>
       </div>
       <div class="sheet" id="sheet">
         <div class="sheet-title-input" id="sheet-title-text">Контрольная работа</div>
@@ -473,10 +490,37 @@
       </div>
     </div>
 
-    <!-- Панель заданий -->
-    <aside class="panel">
-      <h2>Задания</h2>
-      <div class="filters">
+    <!-- Правая панель: настройки шапки + задания -->
+    <aside class="panel" id="side-panel">
+      <div class="panel-head">
+        <h2>Задания</h2>
+        <button class="panel-toggle" id="panel-toggle-btn" title="Свернуть панель, чтобы лист стал шире">▶ Свернуть</button>
+      </div>
+      <div class="panel-body" id="panel-body">
+        <!-- Настройки шапки работы: применяются к листу слева -->
+        <div class="head-settings">
+          <h3>⚙️ Шапка работы</h3>
+          <div class="hs-row">
+            <span class="hs-label">Заголовок:</span>
+            <input class="hs-input" id="hs-title" placeholder="Например: Контрольная работа №2 по алгебре" />
+          </div>
+          <div class="hs-row">
+            <span class="hs-label">Подпись ученика:</span>
+            <select class="hs-input" id="hs-name-style" style="flex:0 0 auto; min-width: 260px;">
+              <option value="fam_name">Фамилия, имя: ______</option>
+              <option value="fam">Фамилия: ______</option>
+              <option value="name">Имя: ______</option>
+              <option value="fam_name_class">Фамилия, имя, класс: ______</option>
+              <option value="none">Без подписи</option>
+            </select>
+          </div>
+          <div class="hs-checks">
+            <label class="hs-check"><input type="checkbox" id="hs-points" /> Поле для баллов у каждого задания</label>
+            <label class="hs-check"><input type="checkbox" id="hs-grade" /> Итоговая оценка на листе</label>
+          </div>
+          <p class="hs-hint">Изменения сохраняются автоматически и видны на листе сразу. Панель настроек не попадает в печать/PDF.</p>
+        </div>
+        <div class="filters">
         <div>
           <label for="f-class">Класс</label>
           <select id="f-class"><option value="">Все классы</option></select>
@@ -500,6 +544,7 @@
         </div>
       </div>
       <div class="task-list" id="task-list"><div class="empty">Загрузка…</div></div>
+      </div><!-- /panel-body -->
     </aside>
   </div>
 
@@ -522,6 +567,20 @@
     // отформатированный учителем текст задания (жирный/курсив/подчёркивание/размер)
     let sheetItems = [];
     const STORAGE_KEY = 'workshop_sheet_v1';
+
+    /* ---------- Сворачивание/разворачивание правой панели ---------- */
+    const sidePanelEl = document.getElementById('side-panel');
+    const panelToggleBtn = document.getElementById('panel-toggle-btn');
+    const panelRestoreBtn = document.getElementById('panel-restore-btn');
+    const PANEL_HIDDEN_KEY = 'workshop_panel_hidden';
+
+    function setPanelHidden(hidden) {
+      document.body.classList.toggle('panel-hidden', hidden);
+      localStorage.setItem(PANEL_HIDDEN_KEY, hidden ? '1' : '0');
+    }
+    panelToggleBtn.addEventListener('click', () => setPanelHidden(true));
+    panelRestoreBtn.addEventListener('click', () => setPanelHidden(false));
+    if (localStorage.getItem(PANEL_HIDDEN_KEY) === '1') setPanelHidden(true);
 
     /* ---------- sanitization for saved rich HTML ---------- */
     const ALLOWED_TAGS = new Set(['B', 'STRONG', 'I', 'EM', 'U', 'BR', 'P', 'SPAN', 'FONT']);
@@ -567,6 +626,17 @@
       none: '',
     };
 
+    // Максимальный балл работы (сумма баллов всех заданий) — для строки оценки
+    function maxScore() {
+      return sheetItems.reduce((sum, it) => sum + (Number(it.points) || 0), 0);
+    }
+    function scoreRowHtml() {
+      const m = maxScore();
+      return m > 0
+        ? `Оценка: __________ &nbsp;<span style="color:#6b7a8c;font-size:13px;">(максимум ${m} б.)</span>`
+        : 'Оценка: __________';
+    }
+
     function applyHeaderSettings() {
       titleTextEl.textContent = titleInput.value.trim() || 'Контрольная работа';
       const style = nameStyleSel.value;
@@ -581,6 +651,7 @@
         nameInput.addEventListener('input', saveSheet);
       }
       scoreRowEl.style.display = gradeChk.checked ? '' : 'none';
+      if (gradeChk.checked) scoreRowEl.innerHTML = scoreRowHtml();
     }
 
     let savedName = '';
@@ -864,9 +935,12 @@
         div.dataset.index = idx;
         // На листе показываем только номер и текст задания — служебные поля
         // (тема, класс, сложность) остаются в панели справа и не печатаются.
-        // При включённом поле баллов у каждого задания справа от номера — «(__ б)».
+        // При включённом поле баллов у каждого задания справа от номера —
+        // редактируемое число баллов (меняется прямо на листе).
+        const pts = item.points == null ? 1 : item.points;
         const pointsHtml = pointsChk.checked
-          ? '<span class="item-points">(<u>&nbsp;&nbsp;&nbsp;</u> б.)</span>' : '';
+          ? `<span class="item-points">(<input type="number" class="points-input" min="0" max="100" step="1" value="${pts}" data-idx="${idx}" title="Баллы за задание" /> б.)</span>`
+          : '';
         div.innerHTML = `
           <div class="item-head">
             <div class="item-head-row">
@@ -877,6 +951,12 @@
           <div class="item-body"></div>
           <button class="item-remove" title="Убрать с листа" onclick="removeItem(${idx})">✕</button>`;
         const body = div.querySelector('.item-body');
+        // редактирование баллов прямо на листе (не мешает перетаскиванию)
+        const ptsInput = div.querySelector('.points-input');
+        if (ptsInput) {
+          ptsInput.addEventListener('mousedown', e => e.stopPropagation());
+          ptsInput.addEventListener('change', () => setItemPoints(idx, ptsInput.value));
+        }
         if (t.latex_code || item.edited) {
           // Рендер "как скомпилированный LaTeX-файл": серифный шрифт Computer
           // Modern, 14px; текст и формулы обрабатывает MathJax (CHTML).
@@ -1036,7 +1116,7 @@
 
     function addItem(taskId, beforeIndex) {
       if (sheetItems.some(i => i.task_id === taskId)) return;
-      const item = { task_id: taskId };
+      const item = { task_id: taskId, points: 1 };
       if (beforeIndex == null || beforeIndex < 0 || beforeIndex >= sheetItems.length) {
         sheetItems.push(item);
       } else {
@@ -1044,6 +1124,14 @@
       }
       saveSheet();
       renderSheet();
+    }
+
+    function setItemPoints(idx, value) {
+      const v = Math.max(0, Math.min(100, Number(value) || 0));
+      sheetItems[idx].points = v;
+      saveSheet();
+      // обновляем только строку оценки — инпут не перерисовываем, чтобы не терять фокус
+      if (gradeChk.checked) scoreRowEl.innerHTML = scoreRowHtml();
     }
 
     function removeItem(idx) {
