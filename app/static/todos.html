@@ -422,10 +422,15 @@
         return;
       }
 
-      // Группировка дел по классам
+      // Группировка дел по параллелям («9А», «9 В» -> «9 класс»)
+      const parallelOf = (v) => {
+        if (!v) return '';
+        const m = String(v).trim().match(/^\d+/);
+        return m ? m[0] : String(v).trim();
+      };
       const groups = {};
       for (const t of todos) {
-        const cls = t.school_class || 'Без класса';
+        const cls = parallelOf(t.school_class) || 'Без класса';
         (groups[cls] = groups[cls] || []).push(t);
       }
 
@@ -436,7 +441,7 @@
       todosEl.innerHTML = ordered.map(cls => `
         <section class="class-section">
           <div class="class-header">
-            <h3>${cls === 'Без класса' ? 'Без класса' : 'Класс: ' + escapeHtml(cls)}</h3>
+            <h3>${cls === 'Без класса' ? 'Без класса' : escapeHtml(cls) + ' класс'}</h3>
             <span class="class-count">${groups[cls].length}</span>
           </div>
           ${groups[cls].map(todoCard).join('')}

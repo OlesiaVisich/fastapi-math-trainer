@@ -48,3 +48,63 @@ with engine.connect() as conn:
     conn.commit()
 
 print("✅ Таблицы готовы в", engine.url)
+
+# Наполнение тестовыми данными, если таблицы пустые (для проверки работы сайта)
+from app.database import SessionLocal
+from sqlalchemy import inspect as _inspect
+
+db = SessionLocal()
+try:
+    insp = _inspect(engine)
+
+    def _cols(table):
+        return {c["name"] for c in insp.get_columns(table)} if insp.has_table(table) else set()
+
+    if insp.has_table("assignments") and db.query(Assignment).count() == 0:
+        print("Добавляю тестовые задания...")
+        g1 = AssignmentGroup(name="Линейные уравнения")
+        db.add(g1)
+        db.flush()
+        samples = [
+            ("$$2x + 5 = 13$$", "9А", "Линейные уравнения", "простая", g1.id),
+            ("$$3x - 7 = 2x + 4$$", "9В", "Линейные уравнения", "простая", g1.id),
+            ("$$5(x-2) = 3x + 6$$", "9А", "Линейные уравнения", "средняя", g1.id),
+            ("$$\\frac{x}{2} + \\frac{x}{3} = 10$$", "10", "Дробые уравнения", "средняя", None),
+            ("$$x^2 - 5x + 6 = 0$$", "9Б", "Квадратные уравнения", "высокая", None),
+            ("$$x^2 + 4x - 21 = 0$$", "11", "Квадратные уравнения", "высокая", None),
+        ]
+        for latex, cls, topic, diff, gid in samples:
+            db.add(Assignment(school_class=cls, topic=topic,
+                              difficulty=diff, latex_code=latex, group_id=gid))
+        db.commit()
+
+    if insp.has_table("lessons") and db.query(Lesson).count() == 0:
+        print("Добавляю тестовые уроки...")
+        db.add_all([
+            Lesson(topic="Квадратные уравнения", school_class="8А",
+                   description="Теория и решение простейших квадратных уравнений.",
+                   homework="§14, №235–240"),
+            Lesson(topic="Линейные уравнения", school_class="9В",
+                   description="Повторение и отработка навыков решения.",
+                   homework="№112, 115"),
+        ])
+        db.commit()
+
+    if insp.has_table("todo_items") and db.query(TodoItem).count() == 0:
+        print("Добавляю тестовые дела...")
+        from datetime import date, timedelta
+        todo_cols = _cols("todo_items")
+        base = dict(
+            text="Проверить тетради",
+            school_class="9",
+            deadline=date.today() + timedelta(days=2),
+            is_done=False,
+        )
+        if "todo_type" in todo_cols:
+            base["todo_type"] = "проверить работу"
+        elif "topic" in todo_cols:
+            base["topic"] = "проверить работу"
+        db.add(TodoItem(**base))
+        db.commit()
+finally:
+    db.close()

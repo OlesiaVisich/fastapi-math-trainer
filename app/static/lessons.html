@@ -101,6 +101,31 @@
       margin-bottom: 20px;
     }
     .btn-new:hover { background: var(--primary-dark); }
+    /* Модальное окно создания урока */
+    .overlay {
+      position: fixed; inset: 0; background: rgba(20, 30, 45, .45);
+      display: none; align-items: flex-start; justify-content: center;
+      padding: 40px 16px; overflow-y: auto; z-index: 50;
+    }
+    .overlay.open { display: flex; }
+    .modal {
+      background: var(--card); border-radius: 12px; width: 100%; max-width: 560px;
+      padding: 22px 24px; box-shadow: 0 12px 40px rgba(0,0,0,.2);
+    }
+    .modal h3 { font-size: 18px; color: var(--primary-dark); margin-bottom: 14px; }
+    .modal label { display: block; font-size: 14px; font-weight: 600; margin: 12px 0 4px; color: var(--text); }
+    .modal input[type="text"], .modal textarea {
+      width: 100%; padding: 9px 11px; border: 1px solid var(--border);
+      border-radius: 8px; font-size: 14px; font-family: inherit;
+    }
+    .modal textarea { min-height: 70px; resize: vertical; }
+    .modal-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 18px; }
+    .modal-actions button {
+      border: none; border-radius: 8px; padding: 10px 18px; font-size: 14px; cursor: pointer;
+    }
+    .btn-cancel { background: #eef2f7; color: var(--text); }
+    .btn-save { background: linear-gradient(135deg, #3b6ea5, #2fa36b); color: #fff; font-weight: 600; }
+    .btn-save:hover { filter: brightness(1.07); }
   </style>
 </head>
 <body>
@@ -118,9 +143,32 @@
   <main>
     <div id="message" class="message"></div>
     <h2>Мои уроки</h2>
-    <a class="btn-new" href="/">+ Создать урок</a>
+    <button class="btn-new" id="btn-new-lesson" type="button">+ Создать урок</button>
     <div id="lessons"><div class="empty">Загрузка…</div></div>
   </main>
+
+  <!-- Всплывающее окно создания урока -->
+  <div class="overlay" id="overlay">
+    <div class="modal">
+      <h3>Новый урок</h3>
+      <form id="lesson-form">
+        <label for="l-topic">Тема *</label>
+        <input type="text" id="l-topic" name="topic" required placeholder="Например: Квадратные уравнения">
+        <label for="l-class">Класс (параллель)</label>
+        <input type="text" id="l-class" name="school_class" placeholder="Например: 8 или 9А">
+        <label for="l-desc">Описание</label>
+        <textarea id="l-desc" name="description" placeholder="Текстовое описание урока"></textarea>
+        <label for="l-hw">Домашняя работа</label>
+        <textarea id="l-hw" name="homework" placeholder="Например: §14, №235–240"></textarea>
+        <label for="l-pdf">Файл с задачами (PDF)</label>
+        <input type="file" id="l-pdf" name="pdf_file" accept=".pdf,application/pdf">
+        <div class="modal-actions">
+          <button type="button" class="btn-cancel" id="btn-cancel">Отмена</button>
+          <button type="submit" class="btn-save">Создать урок</button>
+        </div>
+      </form>
+    </div>
+  </div>
 
   <script>
     const lessonsEl = document.getElementById('lessons');
@@ -169,10 +217,15 @@
         return;
       }
 
-      // Группировка уроков по классам
+      // Группировка уроков по параллелям («9А», «9 В» -> «9 класс»)
+      const parallelOf = (v) => {
+        if (!v) return '';
+        const m = String(v).trim().match(/^\d+/);
+        return m ? m[0] : String(v).trim();
+      };
       const groups = {};
       for (const l of lessons) {
-        const cls = l.school_class || 'Без класса';
+        const cls = parallelOf(l.school_class) || 'Без класса';
         (groups[cls] = groups[cls] || []).push(l);
       }
 
@@ -183,7 +236,7 @@
       lessonsEl.innerHTML = ordered.map(cls => `
         <section class="class-section">
           <div class="class-header">
-            <h3>${cls === 'Без класса' ? 'Без класса' : 'Класс: ' + escapeHtml(cls)}</h3>
+            <h3>${cls === 'Без класса' ? 'Без класса' : escapeHtml(cls) + ' класс'}</h3>
             <span class="class-count">${groups[cls].length}</span>
           </div>
           ${groups[cls].map(l => lessonCard(l, false)).join('')}
@@ -201,6 +254,57 @@
         showMessage('Не удалось удалить урок', false);
       }
     }
+
+    /* ---------- Всплывающее окно создания урока ---------- */
+    const overlay = document.getElementById('overlay');
+    const lessonForm = document.getElementById('lesson-form');
+
+    function openModal() {
+      overlay.classList.add('open');
+      setTimeout(() => document.getElementById('l-topic').focus(), 50);
+    }
+    function closeModal() {
+      overlay.classList.remove('open');
+    }
+
+    document.getElementById('btn-new-lesson').addEventListener('click', openModal);
+    document.getElementById('btn-cancel').addEventListener('click', closeModal);
+    overlay.addEventListener('click', (e) => { if (e.target === overlay) closeModal(); });
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && overlay.classList.contains('open')) closeModal();
+    });
+
+    lessonForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const data = new FormData(lessonForm);
+      if (!data.get('topic').trim()) { showMessage('Укажите тему урока', false); return; }
+      const pdf = data.get('pdf_file');
+      if (pdf && pdf.name && !pdf.name.toLowerCase().endsWith('.pdf')) {
+        showMessage('Файл с задачами должен быть в формате PDF', false);
+        return;
+      }
+      const fd = new FormData();
+      fd.append('topic', data.get('topic').trim());
+      fd.append('school_class', (data.get('school_class') || '').trim());
+      fd.append('description', (data.get('description') || '').trim());
+      fd.append('homework', (data.get('homework') || '').trim());
+      if (pdf && pdf.name) fd.append('tasks_pdf', pdf);
+
+      const res = await fetch('/lessons/', { method: 'POST', body: fd });
+      if (res.ok) {
+        showMessage('Урок создан', true);
+        lessonForm.reset();
+        closeModal();
+        loadLessons();
+      } else {
+        let msg = 'Не удалось создать урок';
+        try {
+          const err = await res.json();
+          if (typeof err.detail === 'string') msg = err.detail;
+        } catch {}
+        showMessage(msg, false);
+      }
+    });
 
     loadLessons();
   </script>
