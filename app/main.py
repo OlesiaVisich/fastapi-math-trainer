@@ -5,7 +5,22 @@ from fastapi import FastAPI
 from fastapi.responses import FileResponse
 from app.api import auth, users, worksheets, generate, lessons, todos, assignments
 
-app = FastAPI()
+
+def _startup():
+    """Создаёт недостающие таблицы и колонки при запуске сервера.
+
+    Это защищает от ошибки "no such column: lessons.lesson_type" после
+    обновления кода без перезапуска init_db.py.
+    """
+    from app.database import Base, engine
+    import app.models  # noqa: F401  (регистрация всех моделей)
+    from app.migrate import run_migrations
+
+    Base.metadata.create_all(bind=engine)
+    run_migrations(engine)
+
+
+app = FastAPI(on_startup=[_startup])
 
 app.include_router(auth.router, prefix="/auth", tags=["auth"])
 app.include_router(users.router, prefix="/users", tags=["users"])
