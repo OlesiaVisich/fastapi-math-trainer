@@ -486,10 +486,12 @@
       header, .panel, .sheet-toolbar, .item-remove, .sheet-empty-hint, .task-actions, .task-card .title-meta { display: none !important; }
       .layout { display: block; margin: 0; padding: 0; max-width: none; }
       .sheet-wrap { position: static; }
-      .sheet { box-shadow: none; max-width: none; padding: 0; min-height: auto; border: none; }
+      .sheet { box-shadow: none; max-width: none; min-height: auto; border: none; }
       /* фиксированный размер листа при печати: А4 целиком, рамка не
-         зависит от количества заданий */
-      .sheet { width: 210mm; height: 297mm; overflow: hidden; position: relative; }
+         зависит от количества заданий. Отступы контента увеличены до 14 мм,
+         чтобы заголовок, номера заданий, баллы и разделительные линии
+         не выходили за рамку (рамка — 6 мм от края) */
+      .sheet { width: 210mm; height: 297mm; overflow: hidden; position: relative; padding: 14mm 15mm; box-sizing: border-box; }
       .sheet::after { inset: 6mm; }
       @page { margin: 0; }
       .sheet.border-none::after     { border: none !important; }
